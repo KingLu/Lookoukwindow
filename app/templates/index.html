@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+
+{% block title %}Lookoukwindow - NASA 太空直播{% endblock %}
+
+{% block content %}
+<div class="main-content">
+    <div class="youtube-container">
+        <div id="youtube-loading" style="display: flex; align-items: center; justify-content: center; height: 100%; color: #fff;">
+            <div>正在加载NASA直播...</div>
+        </div>
+        <iframe 
+            id="youtube-iframe"
+            class="youtube-iframe"
+            src=""
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; unload"
+            allowfullscreen
+            referrerpolicy="strict-origin-when-cross-origin"
+            frameborder="0"
+            title="YouTube video player"
+            style="display: none;">
+        </iframe>
+    </div>
+</div>
+<div class="sidebar">
+    <div class="photo-container" id="photo-container">
+        <div class="loading">加载中...</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .photo-list {
+        padding: 10px;
+    }
+    
+    .photo-item {
+        margin-bottom: 10px;
+        cursor: pointer;
+        border-radius: 4px;
+        overflow: hidden;
+        transition: transform 0.2s;
+    }
+    
+    .photo-item:hover {
+        transform: scale(1.02);
+    }
+    
+    .photo-item img {
+        width: 100%;
+        height: auto;
+        display: block;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // 抑制 YouTube iframe 内部的错误日志（不影响功能）
+    const originalError = console.error;
+    console.error = function(...args) {
+        // 过滤掉 YouTube 内部的错误
+        const errorMsg = args.join(' ');
+        if (errorMsg.includes('inspector.js') || 
+            errorMsg.includes('XMLHttpRequest') ||
+            errorMsg.includes('responseText') ||
+            errorMsg.includes('InvalidStateError')) {
+            // 静默处理 YouTube 内部错误
+            return;
+        }
+        originalError.apply(console, args);
+    };
+    
+    const API_BASE = '/api';
+    let currentChannel = '{{ default_channel|default("NASA TV") }}';
+    let photos = [];
+    let currentPhotoIndex = 0;
+    let slideshowInterval = null;
+    const slideshowDelay = ({{ slideshow_interval_seconds|default(10) }}) * 1000;
+    const showMetadata = {{ 'true' if show_metadata else 'false' }};
+    
+    // 加载YouTube频道
+    async function loadYouTubeChannel(channelName) {
+        try {
+            console.log('正在加载YouTube频道:', channelName);
+            const encodedChannelName = encodeURIComponent(channelName);
+            const response = await fetch(`${API_BASE}/youtube/embed/${encodedChannelName}`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP错误: ${response.status} ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            console.log('获取到embed URL:', data.embed_url);
+            
+            if (!data.embed_url) {
+                throw new Error('未获取到embed URL');
+            }
+            
+            const iframe = document.getElementById('youtube-iframe');
+            const loading = document.getElementById('youtube-loading');
+            
+            if (iframe) {
+                // 对于直播视频，简化URL参数
+                let embedUrl = data.embed_url;
+                
+                // 处理URL参数
+                const urlObj = new URL(embedUrl);
+                
+                // 如果是频道直播流，添加基本参数
+                if (urlObj.pathname.includes('live_stream')) {
+                    urlObj.searchParams.set('autoplay', '1');
+                    urlObj.searchParams.set('mute', '0');
+                } else {
+                    // 普通视频，添加基本参数
+                    urlObj.searchParams.set('autoplay', '1');
+                    urlObj.searchParams.set('mute', '0');
+                    // 移除可能引起问题的参数
+                    urlObj.searchParams.delete('enablejsapi');
+                    urlObj.searchParams.delete('rel');
+                    urlObj.searchParams.delete('modestbranding');
+                }
+                
+                embedUrl = urlObj.toString();
+                
+                console.log('设置YouTube iframe URL:', embedUrl);
+                iframe.src = embedUrl;
+                iframe.style.display = 'block';
+                if (loading) {
+                    loading.style.display = 'none';
+                }
+                console.log('YouTube iframe已设置');
+            } else {
+                console.error('未找到youtube-iframe元素');
+                if (loading) {
+                    loading.innerHTML = '<div style="color: #ff4444;">未找到视频播放器元素</div>';
+                }
+            }
+        } catch (error) {
+            console.error('加载YouTube频道失败:', error);
+            const container = document.querySelector('.youtube-container');
+            if (container) {
+                container.innerHTML = `
+                    <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #fff; flex-direction: column; gap: 10px;">
+                        <div style="font-size: 18px;">加载YouTube直播失败</div>
+                        <div style="font-size: 14px; color: #999;">${error.message}</div>
+                        <button onclick="location.reload()" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer;">重试</button>
+                    </div>
+                `;
+            }
+        }
+    }
+    
+    // 加载照片列表
+    async function loadPhotos() {
+        try {
+            const response = await fetch(`${API_BASE}/google-photos/photos`);
+            const data = await response.json();
+            photos = data.photos || [];
+            
+            if (photos.length > 0) {
+                displayPhoto(0);
+                startSlideshow();
+            } else {
+                document.getElementById('photo-container').innerHTML = 
+                    '<div class="error">暂无照片，请先同步相册</div>';
+            }
+        } catch (error) {
+            console.error('加载照片失败:', error);
+            document.getElementById('photo-container').innerHTML = 
+                '<div class="error">加载照片失败</div>';
+        }
+    }
+    
+    // 显示照片
+    function displayPhoto(index) {
+        if (photos.length === 0) return;
+        
+        currentPhotoIndex = index;
+        const photo = photos[index];
+        const container = document.getElementById('photo-container');
+        
+        const photoUrl = `${API_BASE}/google-photos/photos/${photo.id}/image?size=medium`;
+        
+        let metadataHtml = '';
+        if (showMetadata) {
+            const photoTime = photo.photoTime ? new Date(photo.photoTime).toLocaleString('zh-CN') : '';
+            const location = photo.location?.locationName || '';
+            metadataHtml = `
+                <div class="photo-metadata">
+                    <div>时间: ${photoTime || '未知'}</div>
+                    ${location ? `<div>地点: ${location}</div>` : ''}
+                    <div>${index + 1} / ${photos.length}</div>
+                </div>
+            `;
+        }
+        
+        container.innerHTML = `
+            <button class="photo-nav prev" onclick="prevPhoto()">‹</button>
+            <img src="${photoUrl}" alt="${photo.filename}" class="photo-image" id="photo-image">
+            <button class="photo-nav next" onclick="nextPhoto()">›</button>
+            ${metadataHtml}
+        `;
+    }
+    
+    // 上一张照片
+    function prevPhoto() {
+        if (photos.length === 0) return;
+        currentPhotoIndex = (currentPhotoIndex - 1 + photos.length) % photos.length;
+        displayPhoto(currentPhotoIndex);
+        resetSlideshow();
+    }
+    
+    // 下一张照片
+    function nextPhoto() {
+        if (photos.length === 0) return;
+        currentPhotoIndex = (currentPhotoIndex + 1) % photos.length;
+        displayPhoto(currentPhotoIndex);
+        resetSlideshow();
+    }
+    
+    // 开始轮播
+    function startSlideshow() {
+        if (slideshowInterval) {
+            clearInterval(slideshowInterval);
+        }
+        slideshowInterval = setInterval(() => {
+            nextPhoto();
+        }, slideshowDelay);
+    }
+    
+    // 重置轮播
+    function resetSlideshow() {
+        if (slideshowInterval) {
+            clearInterval(slideshowInterval);
+        }
+        startSlideshow();
+    }
+    
+    // 键盘控制
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft') {
+            prevPhoto();
+        } else if (e.key === 'ArrowRight') {
+            nextPhoto();
+        } else if (e.key === 'Escape') {
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            }
+        }
+    });
+    
+    // 初始化
+    window.addEventListener('DOMContentLoaded', () => {
+        console.log('页面加载完成，默认频道:', currentChannel);
+        if (currentChannel) {
+            loadYouTubeChannel(currentChannel);
+        } else {
+            console.warn('未设置默认频道，尝试加载第一个可用频道');
+            // 尝试获取频道列表并加载第一个
+            fetch(`${API_BASE}/youtube/channels`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.channels && data.channels.length > 0) {
+                        const firstChannel = data.channels[0].name;
+                        console.log('加载第一个可用频道:', firstChannel);
+                        loadYouTubeChannel(firstChannel);
+                    }
+                })
+                .catch(err => console.error('获取频道列表失败:', err));
+        }
+        loadPhotos();
+    });
+</script>
+{% endblock %}

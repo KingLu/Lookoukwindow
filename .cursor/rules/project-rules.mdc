@@ -1,0 +1,363 @@
+---
+description: Lookoukwindow 项目规则 - 包含项目概述、代码规范、目录结构、API设计、安全和开发工作流
+alwaysApply: true
+---
+
+# Lookoukwindow 项目规则
+
+## 项目概述
+
+Lookoukwindow 是一个专为树莓派设计的 NASA 太空直播和 Google 相册展示应用。
+
+### 核心功能
+
+- 🚀 **NASA 太空直播**: 观看 NASA TV、ISS Live、NASA Live 等 YouTube 直播
+- 📸 **Google 相册集成**: 关联并展示 Google 相册
+- 🎨 **轮播展示**: 自动轮播照片，支持手动翻页
+- 🔒 **安全访问**: 简单的密码保护，支持局域网访问
+- 💾 **离线支持**: 照片缓存到本地，离线也可查看
+- 🖥️ **Kiosk 模式**: 开机全屏自动展示
+
+### 技术栈
+
+- **后端框架**: FastAPI
+- **Python 版本**: 3.8+
+- **配置管理**: YAML 文件
+- **认证**: bcrypt 密码哈希 + session 管理
+- **前端**: Jinja2 模板 + 原生 JavaScript
+- **部署**: systemd 服务（生产环境）
+
+### 目标平台
+
+- 树莓派（推荐 Raspberry Pi 4）
+- Ubuntu 20.04+ 或 Raspberry Pi OS
+- 至少 2GB 可用存储空间（用于照片缓存）
+
+## 目录结构
+
+```
+Lookoukwindow/
+├── app/                    # 主应用代码
+│   ├── __init__.py
+│   ├── main.py            # FastAPI 应用入口
+│   ├── api/               # API 路由
+│   │   ├── __init__.py
+│   │   ├── auth.py        # 认证相关 API
+│   │   ├── google_photos.py  # Google 相册 API
+│   │   ├── settings.py    # 设置 API
+│   │   └── youtube.py     # YouTube API
+│   ├── core/              # 核心模块
+│   │   ├── __init__.py
+│   │   ├── auth.py        # 认证管理
+│   │   └── config.py      # 配置管理
+│   ├── services/          # 业务服务
+│   │   ├── __init__.py
+│   │   ├── google_photos.py  # Google 相册服务
+│   │   ├── photo_cache.py    # 照片缓存服务
+│   │   ├── scheduler.py      # 定时任务服务
+│   │   ├── youtube.py        # YouTube 服务
+│   │   └── youtube_fallback.py  # YouTube 备用方案
+│   ├── templates/         # HTML 模板
+│   │   ├── base.html
+│   │   ├── index.html
+│   │   ├── login.html
+│   │   ├── settings.html
+│   │   ├── setup.html
+│   │   └── youtube_fallback.html
+│   └── static/            # 静态文件（CSS、JS、图片等）
+├── scripts/               # 脚本文件
+│   ├── install.sh        # 安装脚本
+│   ├── kiosk.sh          # Kiosk 模式脚本
+│   └── reset_password.py # 密码重置脚本
+├── docs/                  # 文档
+│   └── GOOGLE_PHOTOS_SETUP.md  # Google Photos API 配置指南
+├── config.yaml.example    # 配置文件示例
+├── requirements.txt       # Python 依赖
+├── run.py                 # 启动脚本
+├── lookoukwindow.service  # systemd 服务文件
+├── README.md              # 项目说明
+└── LICENSE                # 许可证文件
+```
+
+### 目录说明
+
+- **app/api/**: 所有 API 路由端点，使用 FastAPI 的 `APIRouter`
+- **app/core/**: 核心功能模块，包括配置管理和认证
+- **app/services/**: 业务逻辑服务层，处理具体业务功能
+- **app/templates/**: Jinja2 HTML 模板文件
+- **app/static/**: 静态资源文件（CSS、JavaScript、图片等）
+- **scripts/**: 可执行的脚本文件，用于安装、部署等操作
+- **docs/**: 项目文档
+
+### 配置文件位置
+
+- **配置文件**: `~/.local/share/lookoukwindow/config.yaml`
+- **配置文件示例**: `config.yaml.example`
+- **敏感信息目录**: `~/.local/share/lookoukwindow/tokens/`
+  - `client_secrets.json` - Google OAuth 客户端密钥
+  - `google_photos_token.json` - Google Photos API token
+
+## 代码规范
+
+### Python 代码风格
+
+1. **遵循 PEP 8 规范**
+   - 使用 4 个空格缩进
+   - 行长度不超过 100 字符
+   - 使用有意义的变量和函数名
+
+2. **类型提示**
+   - 所有函数参数和返回值都应使用类型提示
+   - 使用 `typing` 模块的类型（如 `Optional`, `List`, `Dict`）
+   - 示例：
+     ```python
+     def get_config() -> Config:
+         """获取配置"""
+         return Config()
+     ```
+
+3. **文档字符串**
+   - 所有模块、类和函数都应包含 docstring
+   - 使用三引号格式的 docstring
+   - 函数 docstring 应说明参数和返回值
+   - 示例：
+     ```python
+     def set_password(self, plain_password: str, clear_old: bool = True):
+         """设置密码（会自动hash）
+         
+         Args:
+             plain_password: 明文密码
+             clear_old: 是否清除旧的明文密码（默认True）
+         """
+     ```
+
+4. **导入顺序**
+   - 标准库导入
+   - 第三方库导入
+   - 本地应用导入
+   - 每组导入之间空一行
+   - 示例：
+     ```python
+     import os
+     import logging
+     from pathlib import Path
+     from typing import Dict, Optional
+     
+     from fastapi import FastAPI
+     from pydantic import BaseModel
+     
+     from .core.config import Config
+     ```
+
+5. **日志记录**
+   - 使用 `logging` 模块记录日志
+   - 日志级别：DEBUG（开发）、INFO（常规）、WARNING（警告）、ERROR（错误）
+   - 日志格式：`%(asctime)s - %(name)s - %(levelname)s - %(message)s`
+   - 示例：
+     ```python
+     import logging
+     logger = logging.getLogger(__name__)
+     logger.info("操作成功")
+     logger.error(f"错误: {str(e)}")
+     ```
+
+6. **错误处理**
+   - 使用 FastAPI 的 `HTTPException` 处理 API 错误
+   - 捕获异常并记录日志
+   - 向用户返回友好的错误消息
+   - 示例：
+     ```python
+     try:
+         result = some_operation()
+     except Exception as e:
+         logger.error(f"操作失败: {str(e)}")
+         raise HTTPException(status_code=500, detail="操作失败")
+     ```
+
+### 文件命名规范
+
+- Python 文件：使用小写字母和下划线（snake_case），如 `google_photos.py`
+- 配置文件：使用小写字母和连字符，如 `config.yaml`
+- 模板文件：使用小写字母和下划线，如 `index.html`
+
+### 代码组织原则
+
+- **单一职责原则**: 每个模块/函数只负责一个功能
+- **DRY 原则**: 避免重复代码，提取公共逻辑
+- **配置分离**: 配置信息存储在 YAML 文件中，不硬编码
+- **路径处理**: 使用 `pathlib.Path` 处理文件路径，支持跨平台
+
+## API 设计规范
+
+### RESTful 风格
+
+1. **HTTP 方法**: 使用标准的 HTTP 方法（GET、POST、PUT、DELETE）
+2. **路由前缀**: API 路由使用 `/api/` 前缀
+3. **响应格式**: 统一使用 JSON 格式
+4. **错误处理**: 使用 HTTP 状态码和错误消息
+
+### FastAPI 路由结构
+
+```python
+from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel
+from typing import List, Dict
+
+from ..core.config import Config
+
+router = APIRouter(prefix="/api/resource", tags=["resource"])
+
+class RequestModel(BaseModel):
+    """请求模型"""
+    field: str
+
+def get_config() -> Config:
+    """获取配置依赖"""
+    return Config()
+
+@router.get("/items")
+async def get_items(config: Config = Depends(get_config)):
+    """获取所有项目"""
+    return {"items": []}
+
+@router.post("/items")
+async def create_item(
+    item: RequestModel,
+    config: Config = Depends(get_config)
+):
+    """创建项目"""
+    # 业务逻辑
+    return {"status": "success"}
+```
+
+### 错误处理
+
+- 使用 `HTTPException` 返回错误
+- 提供清晰的错误消息
+- 记录错误日志
+
+```python
+from fastapi import HTTPException
+
+if not success:
+    logger.error("操作失败")
+    raise HTTPException(status_code=400, detail="操作失败的原因")
+```
+
+### 认证保护
+
+- 需要认证的端点通过中间件保护
+- 使用 `AuthManager` 进行认证检查
+- 认证逻辑在 `app/core/auth.py` 中实现
+
+## 安全规范
+
+### 密码存储
+
+- **使用 bcrypt 哈希**: 密码必须使用 bcrypt 哈希存储，不存储明文密码
+- **密码长度限制**: bcrypt 限制密码长度不超过 72 字节
+- **密码设置**: 使用 `Config.set_password()` 方法设置密码，会自动生成哈希
+
+```python
+from passlib.context import CryptContext
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+password_hash = pwd_context.hash(plain_password)
+```
+
+### 会话管理
+
+- **Session Secret**: 使用安全的随机生成的 session secret
+- **会话存储**: 使用安全的 session cookie
+- **会话过期**: 实现适当的会话过期机制
+
+### 文件权限
+
+- **敏感文件**: 敏感文件（如 `client_secrets.json`）权限设置为 600
+- **配置文件**: 配置文件权限设置为 644
+- **脚本文件**: 可执行脚本权限设置为 755
+
+```bash
+chmod 600 ~/.local/share/lookoukwindow/tokens/client_secrets.json
+chmod 644 ~/.local/share/lookoukwindow/config.yaml
+```
+
+### 网络安全
+
+- **局域网环境**: 应用仅设计用于局域网环境，不暴露到公网
+- **CORS 配置**: 允许局域网访问，但不应允许所有来源（生产环境）
+- **输入验证**: 所有用户输入都应进行验证和清理
+
+### 敏感信息处理
+
+- **不要提交**: 不要将 `client_secrets.json` 或包含敏感信息的配置文件提交到代码仓库
+- **环境变量**: 考虑使用环境变量存储敏感配置（可选）
+- **日志记录**: 不要在日志中记录敏感信息（密码、token 等）
+
+### OAuth 安全
+
+- **客户端类型**: Google OAuth 客户端必须使用"桌面应用"类型
+- **测试用户**: OAuth 应用处于测试状态时，必须将用户添加到测试用户列表
+- **Token 存储**: OAuth token 存储在安全的 tokens 目录中
+
+## 开发工作流
+
+### 代码提交
+
+1. **创建功能分支**: 从 main 分支创建功能分支
+2. **编写代码**: 遵循代码规范，添加必要的注释和文档
+3. **测试**: 确保功能正常工作
+4. **提交**: 使用清晰的提交信息
+5. **Pull Request**: 提交 PR 前确保代码符合规范
+
+### 测试建议
+
+- 在树莓派或类似环境中测试
+- 测试 Google Photos API 授权流程
+- 测试 YouTube 直播播放
+- 测试照片缓存和同步功能
+- 测试 Kiosk 模式
+
+### 配置管理
+
+- 使用 `config.yaml.example` 作为配置模板
+- 配置文件存储在 `~/.local/share/lookoukwindow/config.yaml`
+- 使用 `Config` 类管理配置，支持点号分隔的嵌套键
+- 配置修改后调用 `config.save()` 保存
+
+### 日志调试
+
+- 使用 `logging` 模块记录详细日志
+- 开发时设置日志级别为 DEBUG
+- 生产环境设置日志级别为 INFO
+- 关键操作记录 INFO 级别日志
+- 错误记录 ERROR 级别日志
+
+### 路径处理
+
+- 始终使用 `pathlib.Path` 处理文件路径
+- 使用 `.expanduser()` 处理 `~` 路径
+- 使用 `.mkdir(parents=True, exist_ok=True)` 创建目录
+- 确保跨平台兼容性
+
+### 依赖管理
+
+- 所有依赖在 `requirements.txt` 中声明
+- 使用虚拟环境（venv）隔离依赖
+- 安装依赖：`pip install -r requirements.txt`
+- 更新依赖后更新 `requirements.txt`
+
+### 部署
+
+- 生产环境使用 systemd 服务
+- 服务文件：`lookoukwindow.service`
+- 确保服务在系统启动时自动启动
+- 监控服务状态和日志
+
+## 重要提示
+
+- 不要将 `client_secrets.json` 或包含敏感信息的配置文件提交到代码仓库
+- 确保所有路径使用 `pathlib.Path` 处理，支持跨平台
+- 配置文件使用 YAML 格式，支持中文注释
+- 日志记录要详细，便于调试和问题排查
+- 错误处理要友好，向用户返回清晰的错误信息

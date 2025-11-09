@@ -1,0 +1,55 @@
+# Lookoukwindow 配置文件示例
+# 复制此文件为 config.yaml 并修改相应配置
+
+# YouTube 直播配置
+youtube:
+  presets:
+    - name: "NASA TV"
+      url: "https://www.youtube.com/embed/fO9e9jnhYK8"
+      channel_id: "UCLA_DiR1FfKNvjuUpBHmylQ"
+    - name: "ISS Live"
+      url: "https://www.youtube.com/embed/fO9e9jnhYK8"
+      channel_id: "UCLA_DiR1FfKNvjuUpBHmylQ"
+    - name: "NASA Live"
+      url: "https://www.youtube.com/embed/fO9e9jnhYK8"
+      channel_id: "UCLA_DiR1FfKNvjuUpBHmylQ"
+  custom_channels: []
+  default_channel: "NASA TV"
+
+# Google Photos 配置
+google:
+  album_id: ""  # 用户选择的相册ID
+  sync_interval_minutes: 60  # 同步间隔（分钟）
+  max_cache_gb: 2  # 最大缓存大小（GB）
+
+# UI 配置
+ui:
+  layout: "side-by-side"  # side-by-side, stacked, picture-in-picture
+  slideshow_interval_seconds: 10  # 轮播间隔（秒）
+  show_metadata: true  # 显示照片元数据
+  language: "zh-CN"
+  timezone: "Asia/Shanghai"
+
+# 显示配置
+display:
+  kiosk: true
+  screen_rotation: "normal"  # normal, left, right, inverted
+  scale: 1.0
+
+# 安全配置
+security:
+  login_password: ""  # 首次启动后设置，会自动转换为hash
+  session_secret: ""  # 自动生成
+  lan_subnet_allowlist: []  # 允许的局域网子网，空表示允许所有局域网
+
+# 路径配置
+paths:
+  cache_dir: "~/.local/share/lookoukwindow/cache"
+  tokens_dir: "~/.local/share/lookoukwindow/tokens"
+  config_dir: "~/.local/share/lookoukwindow"
+
+# 服务器配置
+server:
+  host: "0.0.0.0"
+  port: 8000
+  reload: false  # 生产环境设为 false

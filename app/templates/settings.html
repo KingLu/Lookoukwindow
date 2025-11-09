@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>设置 - Lookoukwindow</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #1a1a1a;
+            color: #fff;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            margin-bottom: 30px;
+        }
+        
+        .section {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .section h2 {
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #ccc;
+        }
+        
+        select, input {
+            width: 100%;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            color: #fff;
+            font-size: 14px;
+        }
+        
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+        }
+        
+        button:hover {
+            background: #5568d3;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #667eea;
+            text-decoration: none;
+        }
+        
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+        
+        .status.success {
+            background: rgba(39, 174, 96, 0.2);
+            color: #27ae60;
+            display: block;
+        }
+        
+        .status.error {
+            background: rgba(231, 76, 60, 0.2);
+            color: #e74c3c;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-link">← 返回主页</a>
+        <h1>设置</h1>
+        
+        <div class="section">
+            <h2>显示设置</h2>
+            <div class="form-group">
+                <label>布局</label>
+                <select id="layout">
+                    <option value="side-by-side">并排</option>
+                    <option value="stacked">上下</option>
+                    <option value="picture-in-picture">画中画</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>轮播间隔（秒）</label>
+                <input type="number" id="slideshowInterval" min="1" max="60" value="10">
+            </div>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="showMetadata"> 显示照片元数据
+                </label>
+            </div>
+            <div class="form-group">
+                <label>屏幕旋转</label>
+                <select id="screenRotation">
+                    <option value="normal">正常</option>
+                    <option value="left">左转90度</option>
+                    <option value="right">右转90度</option>
+                    <option value="inverted">倒置</option>
+                </select>
+            </div>
+            <button onclick="saveSettings()">保存设置</button>
+            <div class="status" id="status"></div>
+        </div>
+        
+        <div class="section">
+            <h2>YouTube 频道</h2>
+            <div id="channelsList"></div>
+            <button onclick="addChannel()">添加频道</button>
+        </div>
+        
+        <div class="section">
+            <h2>Google Photos</h2>
+            <div id="googlePhotosStatus"></div>
+            <div style="margin-bottom: 15px; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 4px;">
+                <div style="font-size: 14px; color: #ccc; margin-bottom: 10px;">
+                    <strong>使用说明：</strong>
+                </div>
+                <ol style="font-size: 13px; color: #999; margin-left: 20px; line-height: 1.8;">
+                    <li>根据 Google 最新政策，应用不再读取你的整个相册或媒体库；请选择通过 <strong>Google Photos Picker</strong> 挑选要展示的照片。</li>
+                    <li>点击下方“通过 Picker 选择照片（推荐）”在新窗口完成选择；或使用“从 Picker 粘贴 JSON 导入”将 Picker 返回的选择结果导入本应用。</li>
+                    <li>导入成功后，所选照片会下载到本地缓存用于展示。</li>
+                </ol>
+                <div style="margin-top: 10px; padding: 10px; background: rgba(255, 193, 7, 0.15); border-left: 3px solid #ffc107; border-radius: 4px;">
+                    <div style="font-size: 12px; color: #ffc107;">
+                        <strong>⚠️ 提示：</strong><br>
+                        2025-03-31 之后，Google 移除了整库只读访问（photoslibrary.readonly）。若需从整库/相册选择内容，应使用 Google Photos Picker。
+                    </div>
+                </div>
+            </div>
+            <!-- Picker 集成 -->
+            <div id="pickerSection" style="margin-bottom: 15px;">
+                <h3 style="margin-bottom: 10px; font-size: 16px;">通过 Picker 导入</h3>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px;">
+                    <button onclick="openGooglePhotosPicker()" title="在新窗口使用 Google Photos Picker 选择照片">通过 Picker 选择照片（推荐）</button>
+                    <button onclick="clearPickerCache()">清空照片缓存</button>
+                </div>
+                <div class="form-group">
+                    <label>从 Picker 粘贴 JSON（含 media_items 与可选 auth_token）</label>
+                    <textarea id="pickerJson" placeholder='{"media_items":[{"id":"...","baseUrl":"...","filename":"..."}],"auth_token":"..."}' style="width:100%; min-height: 120px; padding: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; color: #fff; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;"></textarea>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button onclick="importPickerSelection()">导入所选媒体项</button>
+                </div>
+                <div id="pickerStatus" style="margin-top: 10px; font-size: 13px; color: #999;"></div>
+            </div>
+            <div id="syncStatus" style="margin-top: 10px;"></div>
+        </div>
+    </div>
+    
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script>
+        const API_BASE = '/api';
+        
+        let GIS_CLIENT_ID = null;
+        let GIS_CLIENT_TYPE = null;
+        let oauthAccessToken = null;
+        let tokenClient = null;
+        
+        // 加载设置
+        async function loadSettings() {
+            try {
+                const response = await fetch(`${API_BASE}/settings/`);
+                const data = await response.json();
+                
+                document.getElementById('layout').value = data.layout || 'side-by-side';
+                document.getElementById('slideshowInterval').value = data.slideshow_interval_seconds || 10;
+                document.getElementById('showMetadata').checked = data.show_metadata !== false;
+                document.getElementById('screenRotation').value = data.screen_rotation || 'normal';
+            } catch (error) {
+                console.error('加载设置失败:', error);
+            }
+        }
+        
+        async function loadPickerClientId() {
+            try {
+                const resp = await fetch(`${API_BASE}/google-photos/picker/client-id`);
+                const data = await resp.json();
+                GIS_CLIENT_ID = data.client_id || null;
+                GIS_CLIENT_TYPE = data.type || null;
+                if (GIS_CLIENT_ID && GIS_CLIENT_TYPE !== 'web') {
+                    // 明确阻止使用“桌面应用/installed”类型的 client_id
+                    alert('当前读取到的 OAuth 客户端为“桌面应用（installed）”，无法用于网页端 Google Photos Picker。\n\n请在 Google Cloud Console 创建“Web 应用”OAuth 客户端：\n1) 在 OAuth 同意屏幕添加 photospicker.mediaitems.readonly 作用域\n2) 已获授权的 JavaScript 来源：\n   - http://127.0.0.1:8000\n   - http://localhost:8000\n   - http://<你的局域网IP>:8000\n3) 下载包含 "web.client_id" 的 JSON 覆盖 ~/.local/share/lookoukwindow/tokens/client_secrets.json');
+                    GIS_CLIENT_ID = null; // 防止后续误用
+                }
+            } catch {}
+        }
+        
+        function ensureGisTokenClient() {
+            if (!GIS_CLIENT_ID || GIS_CLIENT_TYPE !== 'web') {
+                alert('未找到可用的 Web 客户端 client_id。\n请在 Google Cloud Console 创建“Web 应用”OAuth 客户端，并确保 client_secrets.json 中包含 "web.client_id"。');
+                return null;
+            }
+            if (!google || !google.accounts || !google.accounts.oauth2) {
+                alert('Google Identity Services 加载失败，请检查网络。');
+                return null;
+            }
+            if (!tokenClient) {
+                tokenClient = google.accounts.oauth2.initTokenClient({
+                    client_id: GIS_CLIENT_ID,
+                    scope: 'https://www.googleapis.com/auth/photospicker.mediaitems.readonly',
+                    callback: (resp) => {
+                        if (resp && resp.access_token) {
+                            oauthAccessToken = resp.access_token;
+                        } else {
+                            alert('获取访问令牌失败');
+                        }
+                    },
+                });
+            }
+            return tokenClient;
+        }
+        
+        async function getAccessToken() {
+            return new Promise((resolve) => {
+                const client = ensureGisTokenClient();
+                if (!client) {
+                    resolve(null);
+                    return;
+                }
+                client.requestAccessToken();
+                // 等待回调将 oauthAccessToken 设置
+                let tries = 0;
+                const t = setInterval(() => {
+                    if (oauthAccessToken || tries > 50) {
+                        clearInterval(t);
+                        resolve(oauthAccessToken || null);
+                    }
+                    tries++;
+                }, 100);
+            });
+        }
+        
+        // 保存设置
+        async function saveSettings() {
+            const settings = {
+                layout: document.getElementById('layout').value,
+                slideshow_interval_seconds: parseInt(document.getElementById('slideshowInterval').value),
+                show_metadata: document.getElementById('showMetadata').checked,
+                screen_rotation: document.getElementById('screenRotation').value
+            };
+            
+            try {
+                const response = await fetch(`${API_BASE}/settings/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(settings)
+                });
+                
+                const data = await response.json();
+                showStatus('设置保存成功', 'success');
+            } catch (error) {
+                showStatus('保存失败', 'error');
+            }
+        }
+        
+        // 显示状态
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+            setTimeout(() => {
+                statusDiv.className = 'status';
+            }, 3000);
+        }
+        
+        // 加载频道列表
+        async function loadChannels() {
+            try {
+                const response = await fetch(`${API_BASE}/youtube/channels`);
+                const data = await response.json();
+                
+                const channelsList = document.getElementById('channelsList');
+                channelsList.innerHTML = '';
+                
+                data.channels.forEach(channel => {
+                    const div = document.createElement('div');
+                    div.style.marginBottom = '10px';
+                    div.innerHTML = `
+                        <strong>${channel.name}</strong>
+                        ${channel.name !== 'NASA TV' && channel.name !== 'ISS Live' && channel.name !== 'NASA Live' ? 
+                            `<button onclick="deleteChannel('${channel.name}')">删除</button>` : ''}
+                    `;
+                    channelsList.appendChild(div);
+                });
+            } catch (error) {
+                console.error('加载频道失败:', error);
+            }
+        }
+        
+        // 添加频道
+        function addChannel() {
+            const name = prompt('请输入频道名称:');
+            if (!name) return;
+            
+            const url = prompt('请输入 YouTube URL:');
+            if (!url) return;
+            
+            fetch(`${API_BASE}/youtube/channels`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ name, url })
+            }).then(() => {
+                loadChannels();
+            });
+        }
+        
+        // 删除频道
+        function deleteChannel(name) {
+            if (!confirm(`确定要删除频道 "${name}" 吗？`)) return;
+            
+            fetch(`${API_BASE}/youtube/channels/${encodeURIComponent(name)}`, {
+                method: 'DELETE'
+            }).then(() => {
+                loadChannels();
+            });
+        }
+        
+        // 同步照片（兼容旧逻辑，若仍启用）
+        async function syncPhotos() {
+            const syncStatus = document.getElementById('syncStatus');
+            syncStatus.innerHTML = '<div style="color: #667eea;">正在启动同步任务...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/google-photos/sync`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    syncStatus.innerHTML = '<div style="color: #27ae60;">✓ 同步任务已启动，照片将在后台下载</div>';
+                    // 定期更新同步状态
+                    updateSyncStatus();
+                } else {
+                    const errorData = await response.json();
+                    syncStatus.innerHTML = `<div style="color: #e74c3c;">✗ 启动同步失败: ${errorData.detail || '未知错误'}</div>`;
+                }
+            } catch (error) {
+                syncStatus.innerHTML = `<div style="color: #e74c3c;">✗ 启动同步失败: ${error.message}</div>`;
+            }
+        }
+        
+        // 更新同步状态
+        async function updateSyncStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/google-photos/sync/status`);
+                if (response.ok) {
+                    const data = await response.json();
+                    const syncStatus = document.getElementById('syncStatus');
+                    syncStatus.innerHTML = `
+                        <div style="color: #27ae60;">
+                            ✓ 已缓存 ${data.photo_count} 张照片<br>
+                            缓存大小: ${data.cache_size_mb.toFixed(2)} MB (${data.cache_size_gb.toFixed(2)} GB)
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                // 忽略错误
+            }
+        }
+        
+        // Picker：打开 Google Photos Picker（占位：引导用户使用官方 Picker）
+        function openGooglePhotosPicker() {
+            // 完整流程：获取 token -> 创建会话 -> 打开 pickerUri/autoclose -> 轮询 -> 获取媒体 -> 自动导入
+            (async () => {
+                const pickerStatus = document.getElementById('pickerStatus');
+                pickerStatus.style.color = '#999';
+                pickerStatus.textContent = '正在获取授权令牌...';
+                
+                const accessToken = await getAccessToken();
+                if (!accessToken) {
+                    pickerStatus.style.color = '#e74c3c';
+                    pickerStatus.textContent = '✗ 获取访问令牌失败';
+                    return;
+                }
+                
+                pickerStatus.textContent = '正在创建 Picker 会话...';
+                const resp = await fetch(`${API_BASE}/google-photos/picker/session/create`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ access_token: accessToken, autoclose: true })
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    pickerStatus.style.color = '#e74c3c';
+                    pickerStatus.textContent = '✗ 创建会话失败：' + (data.detail || '未知错误');
+                    return;
+                }
+                
+                const pickerUri = data.pickerUri;
+                const sessionId = data.sessionId;
+                if (!pickerUri || !sessionId) {
+                    pickerStatus.style.color = '#e74c3c';
+                    pickerStatus.textContent = '✗ 会话信息不完整';
+                    return;
+                }
+                
+                // 打开 Picker
+                window.open(pickerUri, '_blank');
+                pickerStatus.textContent = '已打开 Picker，等待你完成选择...';
+                
+                // 轮询会话状态，按建议间隔进行
+                let pollIntervalMs = 2000;
+                let stopAt = Date.now() + 10 * 60 * 1000; // 最多等待10分钟
+                let setDone = false;
+                while (Date.now() < stopAt && !setDone) {
+                    try {
+                        const st = await fetch(`${API_BASE}/google-photos/picker/session/${encodeURIComponent(sessionId)}/status?access_token=${encodeURIComponent(accessToken)}`);
+                        const stData = await st.json();
+                        if (st.ok && stData.ok) {
+                            const payload = stData.data || {};
+                            if (payload.mediaItemsSet === true) {
+                                setDone = true;
+                                break;
+                            }
+                            const cfg = payload.pollingConfig || {};
+                            if (cfg.pollInterval) {
+                                // 单位采用毫秒或秒，视返回约定；保守处理
+                                pollIntervalMs = cfg.pollInterval > 1000 ? cfg.pollInterval : cfg.pollInterval * 1000;
+                            }
+                        }
+                    } catch {}
+                    await new Promise(r => setTimeout(r, pollIntervalMs));
+                }
+                
+                if (!setDone) {
+                    pickerStatus.style.color = '#e74c3c';
+                    pickerStatus.textContent = '✗ 超时未完成选择';
+                    return;
+                }
+                
+                pickerStatus.textContent = '选择完成，正在获取媒体列表...';
+                const li = await fetch(`${API_BASE}/google-photos/picker/session/${encodeURIComponent(sessionId)}/media?access_token=${encodeURIComponent(accessToken)}`);
+                const liData = await li.json();
+                if (!li.ok) {
+                    pickerStatus.style.color = '#e74c3c';
+                    pickerStatus.textContent = '✗ 获取媒体失败：' + (liData.detail || '未知错误');
+                    return;
+                }
+                
+                const items = liData.mediaItems || liData.items || [];
+                if (!items.length) {
+                    pickerStatus.style.color = '#e74c3c';
+                    pickerStatus.textContent = '✗ 未返回任何媒体项';
+                    return;
+                }
+                
+                pickerStatus.textContent = `获取到 ${items.length} 个媒体项，正在导入...`;
+                const importResp = await fetch(`${API_BASE}/google-photos/picker/selection`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ media_items: items, auth_token: accessToken })
+                });
+                const importData = await importResp.json();
+                if (importResp.ok) {
+                    pickerStatus.style.color = '#27ae60';
+                    pickerStatus.textContent = `✓ 导入完成：成功 ${importData.imported}，失败 ${importData.failed?.length || 0}`;
+                    updateSyncStatus();
+                } else {
+                    pickerStatus.style.color = '#e74c3c';
+                    pickerStatus.textContent = `✗ 导入失败：${importData.detail || '未知错误'}`;
+                }
+            })();
+        }
+        
+        // Picker：导入所选媒体项
+        async function importPickerSelection() {
+            const pickerStatus = document.getElementById('pickerStatus');
+            pickerStatus.textContent = '正在导入所选媒体项...';
+            try {
+                const raw = document.getElementById('pickerJson').value.trim();
+                if (!raw) {
+                    pickerStatus.textContent = '请先粘贴 Picker 返回的 JSON。';
+                    pickerStatus.style.color = '#e74c3c';
+                    return;
+                }
+                const obj = JSON.parse(raw);
+                // 兼容字段名（mediaItems -> media_items）
+                const media_items = obj.media_items || obj.mediaItems || [];
+                const auth_token = obj.auth_token || obj.authToken || null;
+                const resp = await fetch(`${API_BASE}/google-photos/picker/selection`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ media_items, auth_token })
+                });
+                const data = await resp.json();
+                if (resp.ok) {
+                    pickerStatus.style.color = '#27ae60';
+                    pickerStatus.textContent = `✓ 导入完成：成功 ${data.imported}，失败 ${data.failed?.length || 0}`;
+                    updateSyncStatus();
+                } else {
+                    pickerStatus.style.color = '#e74c3c';
+                    pickerStatus.textContent = `✗ 导入失败：${data.detail || '未知错误'}`;
+                }
+            } catch (e) {
+                pickerStatus.style.color = '#e74c3c';
+                pickerStatus.textContent = `✗ 导入失败：${e.message}`;
+            }
+        }
+        
+        // Picker：清空缓存
+        async function clearPickerCache() {
+            if (!confirm('确定要清空已缓存的照片吗？此操作不可恢复。')) return;
+            const pickerStatus = document.getElementById('pickerStatus');
+            try {
+                const resp = await fetch(`${API_BASE}/google-photos/picker/clear`, { method: 'POST' });
+                const data = await resp.json();
+                if (resp.ok) {
+                    pickerStatus.style.color = '#27ae60';
+                    pickerStatus.textContent = '✓ 已清空缓存';
+                    updateSyncStatus();
+                } else {
+                    pickerStatus.style.color = '#e74c3c';
+                    pickerStatus.textContent = `✗ 清空失败：${data.detail || '未知错误'}`;
+                }
+            } catch (e) {
+                pickerStatus.style.color = '#e74c3c';
+                pickerStatus.textContent = `✗ 清空失败：${e.message}`;
+            }
+        }
+        
+        // 加载 Google Photos 状态
+        async function loadGooglePhotosStatus() {
+            try {
+                const statusDiv = document.getElementById('googlePhotosStatus');
+                statusDiv.innerHTML = `
+                    <div style="padding: 10px; background: rgba(255,255,255,0.05); border-left: 4px solid #667eea; margin-bottom: 15px; border-radius: 4px; color: #ccc;">
+                        使用 Google Photos Picker 选择你要展示的照片，然后导入到应用中。
+                    </div>
+                `;
+                // 更新同步状态
+                updateSyncStatus();
+            } catch (error) {
+                console.error('加载 Google Photos 状态失败:', error);
+            }
+        }
+        
+        // 初始化
+        window.addEventListener('DOMContentLoaded', () => {
+            loadSettings();
+            loadChannels();
+            loadGooglePhotosStatus();
+            loadPickerClientId();
+        });
+    </script>
+</body>
+</html>

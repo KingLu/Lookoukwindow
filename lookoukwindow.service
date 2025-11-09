@@ -1,0 +1,15 @@
+[Unit]
+Description=Lookoukwindow - NASA 太空直播和 Google 相册展示
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/bigdata/codeCangku/算畿/Lookoukwindow
+Environment="PATH=/bigdata/codeCangku/算畿/Lookoukwindow/venv/bin"
+ExecStart=/bigdata/codeCangku/算畿/Lookoukwindow/venv/bin/python /bigdata/codeCangku/算畿/Lookoukwindow/run.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

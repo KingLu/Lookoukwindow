@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>初始设置 - Lookoukwindow</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .setup-container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 400px;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+        
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        button:hover {
+            background: #5568d3;
+        }
+        
+        .error {
+            color: #e74c3c;
+            margin-top: 10px;
+            text-align: center;
+            display: none;
+        }
+        
+        .error.show {
+            display: block;
+        }
+        
+        .success {
+            color: #27ae60;
+            margin-top: 10px;
+            text-align: center;
+            display: none;
+        }
+        
+        .success.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="setup-container">
+        <h1>欢迎使用 Lookoukwindow</h1>
+        <p class="subtitle">请设置登录密码</p>
+        <form id="setupForm">
+            <div class="form-group">
+                <label for="password">密码</label>
+                <input type="password" id="password" name="password" required autofocus minlength="6">
+            </div>
+            <div class="form-group">
+                <label for="passwordConfirm">确认密码</label>
+                <input type="password" id="passwordConfirm" name="passwordConfirm" required minlength="6">
+            </div>
+            <button type="submit">设置密码</button>
+            <div class="error" id="error"></div>
+            <div class="success" id="success"></div>
+        </form>
+    </div>
+    
+    <script>
+        document.getElementById('setupForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const password = document.getElementById('password').value;
+            const passwordConfirm = document.getElementById('passwordConfirm').value;
+            const errorDiv = document.getElementById('error');
+            const successDiv = document.getElementById('success');
+            
+            errorDiv.classList.remove('show');
+            successDiv.classList.remove('show');
+            
+            if (password !== passwordConfirm) {
+                errorDiv.textContent = '两次输入的密码不一致';
+                errorDiv.classList.add('show');
+                return;
+            }
+            
+            if (password.length < 6) {
+                errorDiv.textContent = '密码长度至少6位';
+                errorDiv.classList.add('show');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/auth/set-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    successDiv.textContent = '密码设置成功，正在跳转...';
+                    successDiv.classList.add('show');
+                    setTimeout(() => {
+                        window.location.href = '/login';
+                    }, 1000);
+                } else {
+                    errorDiv.textContent = data.detail || '设置失败';
+                    errorDiv.classList.add('show');
+                }
+            } catch (error) {
+                errorDiv.textContent = '网络错误，请重试';
+                errorDiv.classList.add('show');
+            }
+        });
+    </script>
+</body>
+</html>

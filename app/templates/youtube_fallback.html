@@ -1,0 +1,40 @@
+<!-- YouTube 视频不允许嵌入时的备用方案 -->
+<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #fff; padding: 20px; text-align: center;">
+    <div style="font-size: 24px; margin-bottom: 20px;">📺 NASA 直播</div>
+    <div style="font-size: 16px; margin-bottom: 30px; color: #999;">
+        该视频不允许在其他网站嵌入播放
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 15px; max-width: 400px;">
+        <a href="https://www.youtube.com/watch?v=xRPjKQtRXR8" 
+           target="_blank" 
+           style="display: block; padding: 15px 30px; background: #ff0000; color: white; text-decoration: none; border-radius: 8px; font-size: 18px; font-weight: bold;">
+            ▶ 在 YouTube 上观看
+        </a>
+        <button onclick="tryAlternativeChannel()" 
+                style="padding: 12px 24px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: 8px; cursor: pointer; font-size: 14px;">
+            尝试其他频道
+        </button>
+        <button onclick="window.location.href='/settings'" 
+                style="padding: 12px 24px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: 8px; cursor: pointer; font-size: 14px;">
+            前往设置页面
+        </button>
+    </div>
+</div>
+
+<script>
+function tryAlternativeChannel() {
+    // 尝试加载其他频道
+    const alternatives = ['ISS Live', 'NASA Live Stream'];
+    const currentChannel = '{{ default_channel }}';
+    const nextChannel = alternatives.find(ch => ch !== currentChannel) || alternatives[0];
+    
+    if (confirm(`是否切换到 "${nextChannel}" 频道？`)) {
+        // 调用API切换频道
+        fetch(`/api/youtube/default?channel_name=${encodeURIComponent(nextChannel)}`, {
+            method: 'POST'
+        }).then(() => {
+            location.reload();
+        });
+    }
+}
+</script>
