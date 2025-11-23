@@ -6,13 +6,16 @@ xset s off
 xset -dpms
 xset s noblank
 
-# 启动 Chromium 全屏模式
-chromium-browser \
+# 启动 Firefox 全屏模式
+# 提示：在树莓派上如果没有安装，请运行: sudo apt install firefox-esr
+
+# 优先检测 firefox-esr (树莓派常用)，否则使用 firefox
+BROWSER="firefox"
+if command -v firefox-esr &> /dev/null; then
+    BROWSER="firefox-esr"
+fi
+
+$BROWSER \
     --kiosk \
-    --noerrdialogs \
-    --disable-infobars \
-    --disable-session-crashed-bubble \
-    --disable-restore-session-state \
-    --autoplay-policy=no-user-gesture-required \
-    --check-for-update-interval=31536000 \
+    --private-window \
     http://localhost:8000

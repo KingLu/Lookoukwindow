@@ -81,16 +81,18 @@ def get_config() -> Config:
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
     """认证中间件"""
-    # 排除登录页面和API端点
-    if request.url.path.startswith("/api/") or request.url.path.startswith("/static/"):
+    # 排除登录页面、API端点、静态文件
+    if (request.url.path.startswith("/api/") or 
+        request.url.path.startswith("/static/")):
         response = await call_next(request)
         return response
     
-    if request.url.path == "/login" or request.url.path == "/setup":
+    # 允许无密码访问首页(Kiosk模式)和登录/设置页
+    if request.url.path in ["/", "/login", "/setup", "/favicon.ico"]:
         response = await call_next(request)
         return response
     
-    # 检查认证
+    # 其他页面（如 /settings）需要认证
     config = get_config()
     auth_manager = AuthManager(config)
     is_authenticated = await auth_manager.get_current_user(request)
