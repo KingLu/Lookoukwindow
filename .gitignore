@@ -16,6 +16,7 @@ cookies.txt
 
 # 数据目录
 data/
+release/
 
 # IDE
 .vscode/
