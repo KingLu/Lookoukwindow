@@ -59,14 +59,14 @@ if ! command -v pip &> /dev/null; then
     exit 1
 fi
 
-# 升级pip (增加超时设置，防止网络慢卡死)
+# 升级pip (增加超时设置，防止网络慢卡死，使用清华源)
 echo "升级 pip..."
-pip install --upgrade pip --timeout 100 --retries 3
+pip install --upgrade pip --timeout 100 --retries 3 -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple
 
 # 安装依赖
 echo "安装依赖..."
 if [ -f "$PROJECT_DIR/requirements.txt" ]; then
-    pip install -r "$PROJECT_DIR/requirements.txt" --timeout 100 --retries 3
+    pip install -r "$PROJECT_DIR/requirements.txt" --timeout 100 --retries 3 -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple
 else
     echo "警告: 未找到 requirements.txt"
 fi
