@@ -154,16 +154,16 @@
     // 加载照片列表
     async function loadPhotos() {
         try {
-            const response = await fetch(`${API_BASE}/google-photos/photos`);
-            const data = await response.json();
-            photos = data.photos || [];
+            // 使用新的相册 API
+            const response = await fetch(`${API_BASE}/albums/slideshow`);
+            photos = await response.json();
             
             if (photos.length > 0) {
                 displayPhoto(0);
                 startSlideshow();
             } else {
                 document.getElementById('photo-container').innerHTML = 
-                    '<div class="error">暂无照片，请先同步相册</div>';
+                    '<div class="error" style="text-align: center; padding: 20px;">暂无照片<br>请在“设置”中创建相册并上传照片</div>';
             }
         } catch (error) {
             console.error('加载照片失败:', error);
@@ -180,16 +180,25 @@
         const photo = photos[index];
         const container = document.getElementById('photo-container');
         
-        const photoUrl = `${API_BASE}/google-photos/photos/${photo.id}/image?size=medium`;
+        // 新 API 直接返回 url
+        const photoUrl = photo.url;
         
         let metadataHtml = '';
         if (showMetadata) {
-            const photoTime = photo.photoTime ? new Date(photo.photoTime).toLocaleString('zh-CN') : '';
-            const location = photo.location?.locationName || '';
+            // 格式化时间
+            let timeStr = '';
+            if (photo.created_at) {
+                try {
+                    timeStr = new Date(photo.created_at).toLocaleString('zh-CN');
+                } catch(e) {}
+            }
+            
+            const albumName = photo.album_name || '';
+            
             metadataHtml = `
                 <div class="photo-metadata">
-                    <div>时间: ${photoTime || '未知'}</div>
-                    ${location ? `<div>地点: ${location}</div>` : ''}
+                    <div>相册: ${albumName}</div>
+                    <div>时间: ${timeStr}</div>
                     <div>${index + 1} / ${photos.length}</div>
                 </div>
             `;
@@ -197,7 +206,7 @@
         
         container.innerHTML = `
             <button class="photo-nav prev" onclick="prevPhoto()">‹</button>
-            <img src="${photoUrl}" alt="${photo.filename}" class="photo-image" id="photo-image">
+            <img src="${photoUrl}" alt="${photo.filename}" class="photo-image" id="photo-image" loading="eager">
             <button class="photo-nav next" onclick="nextPhoto()">›</button>
             ${metadataHtml}
         `;

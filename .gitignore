@@ -12,6 +12,10 @@ ENV/
 # 配置文件（包含敏感信息）
 config.yaml
 *.log
+cookies.txt
+
+# 数据目录
+data/
 
 # IDE
 .vscode/
@@ -24,5 +28,5 @@ config.yaml
 .DS_Store
 Thumbs.db
 
-# 用户数据目录
+# 用户数据目录 (Legacy)
 ~/.local/share/lookoukwindow/

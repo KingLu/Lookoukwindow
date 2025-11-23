@@ -11,7 +11,7 @@ from pathlib import Path
 
 from .core.config import Config
 from .core.auth import AuthManager
-from .api import auth, youtube, google_photos, settings
+from .api import auth, youtube, settings, albums
 
 # 配置日志
 logging.basicConfig(
@@ -25,7 +25,7 @@ logging.basicConfig(
 # 设置应用相关模块的日志级别
 logging.getLogger("app").setLevel(logging.DEBUG)
 
-app = FastAPI(title="Lookoukwindow", description="NASA 太空直播和 Google 相册展示")
+app = FastAPI(title="Lookoukwindow", description="NASA 太空直播和本地相册展示")
 
 # 配置CORS（允许局域网访问）
 app.add_middleware(
@@ -45,7 +45,6 @@ async def add_referrer_policy(request: Request, call_next):
     if "text/html" in response.headers.get("content-type", ""):
         response.headers["Referrer-Policy"] = "origin"
         # 添加 Permissions-Policy 以减少警告（允许 YouTube iframe 需要的权限）
-        # 注意：unload 权限允许 YouTube 使用，但会显示警告，这是正常的
         response.headers["Permissions-Policy"] = (
             "accelerometer=*, autoplay=*, clipboard-write=*, "
             "encrypted-media=*, fullscreen=*, gyroscope=*, "
@@ -56,8 +55,8 @@ async def add_referrer_policy(request: Request, call_next):
 # 注册API路由
 app.include_router(auth.router)
 app.include_router(youtube.router)
-app.include_router(google_photos.router)
 app.include_router(settings.router)
+app.include_router(albums.router)
 
 # 配置模板和静态文件
 templates_dir = Path(__file__).parent / "templates"

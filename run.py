@@ -10,18 +10,12 @@ if __name__ == "__main__":
     port = config.get('server.port', 8000)
     reload = config.get('server.reload', False)
     
-    # 启动定时任务
-    from app.services.scheduler import SchedulerService
-    scheduler = SchedulerService(config)
-    scheduler.start()
+    # 不再需要定时任务，因为改为本地相册管理
     
-    try:
-        uvicorn.run(
-            "app.main:app",
-            host=host,
-            port=port,
-            reload=reload,
-            log_level="info"
-        )
-    finally:
-        scheduler.stop()
+    uvicorn.run(
+        "app.main:app",
+        host=host,
+        port=port,
+        reload=reload,
+        log_level="info"
+    )

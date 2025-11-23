@@ -16,6 +16,7 @@ class Config:
     """配置管理类"""
     
     def __init__(self, config_path: Optional[str] = None):
+        self.project_root = Path(__file__).parent.parent.parent
         self.config_path = config_path or self._get_default_config_path()
         self.config_dir = Path(self.config_path).parent
         self.config_dir.mkdir(parents=True, exist_ok=True)
@@ -30,8 +31,8 @@ class Config:
         self._ensure_security()
     
     def _get_default_config_path(self) -> str:
-        """获取默认配置文件路径"""
-        config_dir = Path.home() / ".local" / "share" / "lookoukwindow"
+        """获取默认配置文件路径 (项目根目录/data/config.yaml)"""
+        config_dir = self.project_root / "data"
         config_dir.mkdir(parents=True, exist_ok=True)
         return str(config_dir / "config.yaml")
     
@@ -41,14 +42,8 @@ class Config:
         
         # 如果配置文件不存在，从示例文件创建
         if not config_path.exists():
-            example_path = Path(__file__).parent.parent.parent / "config.yaml.example"
-            if example_path.exists():
-                import shutil
-                shutil.copy(example_path, config_path)
-                print(f"已创建配置文件: {config_path}")
-            else:
-                # 创建默认配置
-                self._create_default_config(config_path)
+            # 检查旧配置是否存在，如果存在则迁移(可选，这里简单起见直接新建默认)
+            self._create_default_config(config_path)
         
         with open(config_path, 'r', encoding='utf-8') as f:
             config = yaml.safe_load(f) or {}
@@ -64,16 +59,12 @@ class Config:
                     {'name': 'NASA TV', 'url': 'https://www.youtube.com/embed/fO9e9jnhYK8', 'channel_id': 'UCLA_DiR1FfKNvjuUpBHmylQ'},
                     {'name': 'ISS Live', 'url': 'https://www.youtube.com/embed/fO9e9jnhYK8', 'channel_id': 'UCLA_DiR1FfKNvjuUpBHmylQ'},
                     {'name': 'NASA Live', 'url': 'https://www.youtube.com/embed/fO9e9jnhYK8', 'channel_id': 'UCLA_DiR1FfKNvjuUpBHmylQ'},
-                    # 备用：频道直播流方式
-                    {'name': 'NASA Live Stream', 'url': 'https://www.youtube.com/embed/live_stream?channel=UCLA_DiR1FfKNvjuUpBHmylQ', 'channel_id': 'UCLA_DiR1FfKNvjuUpBHmylQ'}
                 ],
                 'custom_channels': [],
                 'default_channel': 'NASA TV'
             },
-            'google': {
-                'album_id': '',
-                'sync_interval_minutes': 60,
-                'max_cache_gb': 2
+            'albums': {
+                'active_albums': []  # 启用的相册ID列表
             },
             'ui': {
                 'layout': 'side-by-side',
@@ -88,14 +79,12 @@ class Config:
                 'scale': 1.0
             },
             'security': {
-                'login_password': '',
+                'login_password': '',  # 首次启动后设置，会自动转换为hash
                 'session_secret': secrets.token_urlsafe(32),
                 'lan_subnet_allowlist': []
             },
             'paths': {
-                'cache_dir': '~/.local/share/lookoukwindow/cache',
-                'tokens_dir': '~/.local/share/lookoukwindow/tokens',
-                'config_dir': '~/.local/share/lookoukwindow'
+                'data_dir': 'data'  # 相对于项目根目录
             },
             'server': {
                 'host': '0.0.0.0',
@@ -109,15 +98,9 @@ class Config:
     
     def _ensure_directories(self):
         """确保必要的目录存在"""
-        cache_dir = Path(self.get('paths.cache_dir', '~/.local/share/lookoukwindow/cache')).expanduser()
-        tokens_dir = Path(self.get('paths.tokens_dir', '~/.local/share/lookoukwindow/tokens')).expanduser()
-        
-        cache_dir.mkdir(parents=True, exist_ok=True)
-        tokens_dir.mkdir(parents=True, exist_ok=True)
-        
-        # 创建照片缓存子目录
-        (cache_dir / 'photos').mkdir(parents=True, exist_ok=True)
-        (cache_dir / 'thumbnails').mkdir(parents=True, exist_ok=True)
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        self.albums_dir.mkdir(parents=True, exist_ok=True)
+        self.thumbnails_dir.mkdir(parents=True, exist_ok=True)
     
     def _ensure_security(self):
         """确保安全配置"""
@@ -175,43 +158,43 @@ class Config:
             return False
     
     def set_password(self, plain_password: str, clear_old: bool = True):
-        """设置密码（会自动hash）
-        
-        Args:
-            plain_password: 明文密码
-            clear_old: 是否清除旧的明文密码（默认True）
-        """
-        # bcrypt 限制密码长度不超过72字节
+        """设置密码（会自动hash）"""
         password_bytes = len(plain_password.encode('utf-8'))
         if password_bytes > 72:
             logger.error(f"[设置密码] 密码长度超过限制: {password_bytes} 字节")
             raise ValueError("密码长度不能超过72字节")
         
-        logger.debug(f"[设置密码] 开始生成密码hash, 密码长度: {password_bytes} 字节")
+        logger.debug(f"[设置密码] 开始生成密码hash")
         password_hash = pwd_context.hash(plain_password)
-        logger.debug(f"[设置密码] 密码hash生成成功, hash长度: {len(password_hash)}")
         
         self.set('security.login_password_hash', password_hash)
-        # 清除明文密码
         if clear_old and self.get('security.login_password'):
-            logger.debug("[设置密码] 清除旧明文密码")
             self.set('security.login_password', '')
         self.save()
-        logger.info("[设置密码] 密码已保存到配置文件")
+        logger.info("[设置密码] 密码已保存")
     
     def is_password_set(self) -> bool:
         """检查是否已设置密码"""
         return bool(self.get('security.login_password_hash') or self.get('security.login_password'))
     
     @property
-    def cache_dir(self) -> Path:
-        """获取缓存目录"""
-        return Path(self.get('paths.cache_dir', '~/.local/share/lookoukwindow/cache')).expanduser()
+    def data_dir(self) -> Path:
+        """获取数据根目录"""
+        path_str = self.get('paths.data_dir', 'data')
+        path = Path(path_str)
+        if not path.is_absolute():
+            path = self.project_root / path
+        return path
     
     @property
-    def tokens_dir(self) -> Path:
-        """获取tokens目录"""
-        return Path(self.get('paths.tokens_dir', '~/.local/share/lookoukwindow/tokens')).expanduser()
+    def albums_dir(self) -> Path:
+        """获取相册目录"""
+        return self.data_dir / "albums"
+        
+    @property
+    def thumbnails_dir(self) -> Path:
+        """获取缩略图目录"""
+        return self.data_dir / "thumbnails"
     
     @property
     def session_secret(self) -> str:
