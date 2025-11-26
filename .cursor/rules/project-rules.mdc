@@ -7,15 +7,15 @@ alwaysApply: true
 
 ## 项目概述
 
-Lookoukwindow 是一个专为树莓派设计的 NASA 太空直播和 Google 相册展示应用。
+Lookoukwindow 是一个专为树莓派设计的 NASA 太空直播和本地相册展示应用。
 
 ### 核心功能
 
 - 🚀 **NASA 太空直播**: 观看 NASA TV、ISS Live、NASA Live 等 YouTube 直播
-- 📸 **Google 相册集成**: 关联并展示 Google 相册
-- 🎨 **轮播展示**: 自动轮播照片，支持手动翻页
+- 🖼️ **本地相册管理**: 替代 Google Photos，支持创建/管理本地相册、批量上传
+- 🎨 **轮播展示**: 自动轮播已激活相册的照片，支持手动翻页
 - 🔒 **安全访问**: 简单的密码保护，支持局域网访问
-- 💾 **离线支持**: 照片缓存到本地，离线也可查看
+- 💾 **完全离线**: 所有照片存储在本地，无需外部 API 依赖
 - 🖥️ **Kiosk 模式**: 开机全屏自动展示
 
 ### 技术栈
@@ -31,7 +31,7 @@ Lookoukwindow 是一个专为树莓派设计的 NASA 太空直播和 Google 相�
 
 - 树莓派（推荐 Raspberry Pi 4）
 - Ubuntu 20.04+ 或 Raspberry Pi OS
-- 至少 2GB 可用存储空间（用于照片缓存）
+- 至少 2GB 可用存储空间（用于照片存储）
 
 ## 目录结构
 
@@ -42,8 +42,8 @@ Lookoukwindow/
 │   ├── main.py            # FastAPI 应用入口
 │   ├── api/               # API 路由
 │   │   ├── __init__.py
+│   │   ├── albums.py      # 本地相册 API
 │   │   ├── auth.py        # 认证相关 API
-│   │   ├── google_photos.py  # Google 相册 API
 │   │   ├── settings.py    # 设置 API
 │   │   └── youtube.py     # YouTube API
 │   ├── core/              # 核心模块
@@ -52,9 +52,7 @@ Lookoukwindow/
 │   │   └── config.py      # 配置管理
 │   ├── services/          # 业务服务
 │   │   ├── __init__.py
-│   │   ├── google_photos.py  # Google 相册服务
-│   │   ├── photo_cache.py    # 照片缓存服务
-│   │   ├── scheduler.py      # 定时任务服务
+│   │   ├── album_service.py  # 本地相册服务
 │   │   ├── youtube.py        # YouTube 服务
 │   │   └── youtube_fallback.py  # YouTube 备用方案
 │   ├── templates/         # HTML 模板
@@ -68,9 +66,9 @@ Lookoukwindow/
 ├── scripts/               # 脚本文件
 │   ├── install.sh        # 安装脚本
 │   ├── kiosk.sh          # Kiosk 模式脚本
+│   ├── stress_test.sh    # 压力测试脚本
 │   └── reset_password.py # 密码重置脚本
 ├── docs/                  # 文档
-│   └── GOOGLE_PHOTOS_SETUP.md  # Google Photos API 配置指南
 ├── config.yaml.example    # 配置文件示例
 ├── requirements.txt       # Python 依赖
 ├── run.py                 # 启动脚本
@@ -93,9 +91,7 @@ Lookoukwindow/
 
 - **配置文件**: `~/.local/share/lookoukwindow/config.yaml`
 - **配置文件示例**: `config.yaml.example`
-- **敏感信息目录**: `~/.local/share/lookoukwindow/tokens/`
-  - `client_secrets.json` - Google OAuth 客户端密钥
-  - `google_photos_token.json` - Google Photos API token
+- **相册数据目录**: `~/.local/share/lookoukwindow/data/albums/`
 
 ## 代码规范
 
@@ -313,9 +309,9 @@ chmod 644 ~/.local/share/lookoukwindow/config.yaml
 ### 测试建议
 
 - 在树莓派或类似环境中测试
-- 测试 Google Photos API 授权流程
 - 测试 YouTube 直播播放
-- 测试照片缓存和同步功能
+- 测试本地相册创建和照片上传
+- 测试照片轮播展示
 - 测试 Kiosk 模式
 
 ### 配置管理

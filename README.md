@@ -5,7 +5,7 @@ NASA 太空直播和本地相册展示应用，专为树莓派设计。
 ## 功能特性
 
 - 🚀 **NASA 太空直播**: 观看 NASA TV、ISS Live、NASA Live 等 YouTube 直播
-- 📸 **本地相册管理**: 
+- 🖼️ **本地相册管理**: 
   - 创建/管理多个本地相册
   - 批量上传照片（支持拖拽）
   - 自由切换要轮播的相册
@@ -61,7 +61,7 @@ python run.py
 
 ## 配置说明
 
-配置文件位置: `data/config.yaml` (在项目根目录下的 data 目录中)
+配置文件位置: `~/.local/share/lookoukwindow/config.yaml`
 
 主要配置项：
 
@@ -213,7 +213,6 @@ Lookoukwindow/
 │   ├── services/     # 业务服务 (album_service, youtube_service)
 │   ├── templates/    # HTML 模板
 │   └── main.py       # FastAPI 应用入口
-├── data/             # 数据目录 (相册、配置) - 自动生成
 ├── scripts/          # 脚本文件
 ├── requirements.txt  # Python 依赖
 └── run.py           # 启动脚本
