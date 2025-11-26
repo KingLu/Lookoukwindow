@@ -4,10 +4,10 @@ After=network.target
 
 [Service]
 Type=simple
-User=pi
-WorkingDirectory=/bigdata/codeCangku/算畿/Lookoukwindow
-Environment="PATH=/bigdata/codeCangku/算畿/Lookoukwindow/venv/bin"
-ExecStart=/bigdata/codeCangku/算畿/Lookoukwindow/venv/bin/python /bigdata/codeCangku/算畿/Lookoukwindow/run.py
+User=jenkins
+WorkingDirectory=/var/www/loooutwindow
+Environment="PATH=/var/www/loooutwindow/venv/bin"
+ExecStart=/var/www/loooutwindow/venv/bin/python /var/www/loooutwindow/run.py
 Restart=always
 RestartSec=10
 
