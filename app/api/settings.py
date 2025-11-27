@@ -14,6 +14,10 @@ class SettingsUpdateRequest(BaseModel):
     show_metadata: Optional[bool] = None
     screen_rotation: Optional[str] = None
     scale: Optional[float] = None
+    time_format: Optional[str] = None
+    weather_location_name: Optional[str] = None
+    weather_latitude: Optional[float] = None
+    weather_longitude: Optional[float] = None
 
 
 def get_config() -> Config:
@@ -29,7 +33,11 @@ async def get_settings(config: Config = Depends(get_config)):
         "slideshow_interval_seconds": config.get('ui.slideshow_interval_seconds', 10),
         "show_metadata": config.get('ui.show_metadata', True),
         "screen_rotation": config.get('display.screen_rotation', 'normal'),
-        "scale": config.get('display.scale', 1.0)
+        "scale": config.get('display.scale', 1.0),
+        "time_format": config.get('ui.time_format', '24h'),
+        "weather_location_name": config.get('weather.location_name', '北京市大兴区'),
+        "weather_latitude": config.get('weather.latitude', 39.73),
+        "weather_longitude": config.get('weather.longitude', 116.33)
     }
 
 
@@ -49,6 +57,14 @@ async def update_settings(
         config.set('display.screen_rotation', settings.screen_rotation)
     if settings.scale is not None:
         config.set('display.scale', settings.scale)
+    if settings.time_format is not None:
+        config.set('ui.time_format', settings.time_format)
+    if settings.weather_location_name is not None:
+        config.set('weather.location_name', settings.weather_location_name)
+    if settings.weather_latitude is not None:
+        config.set('weather.latitude', settings.weather_latitude)
+    if settings.weather_longitude is not None:
+        config.set('weather.longitude', settings.weather_longitude)
     
     config.save()
     return {"status": "success", "message": "设置更新成功"}

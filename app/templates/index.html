@@ -3,7 +3,24 @@
 {% block title %}Lookoukwindow - NASA 太空直播{% endblock %}
 
 {% block content %}
-<div class="main-content">
+<!-- 左侧面板：时间(上) + 直播(中) + 天气(下) -->
+<div class="main-content dashboard-left">
+    <!-- 上部：日期时间 -->
+    <div class="dashboard-top">
+        <div class="time-display" id="time-display" onclick="toggleTimeFormat()">00:00:00</div>
+        <div class="date-row">
+            <div class="date-left">
+                <div class="date-solar" id="date-solar">2025年 1月 1日 星期一</div>
+                <div class="date-lunar-text" id="date-lunar-text">腊月初八</div>
+                <div class="date-ganzhi" id="date-ganzhi">乙巳年 【蛇年】</div>
+            </div>
+            <div class="date-right">
+                <div class="date-big-day" id="date-big-day">1</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 中部：直播 -->
     <div class="youtube-container">
         <div id="youtube-loading" style="display: flex; align-items: center; justify-content: center; height: 100%; color: #fff;">
             <div>正在加载NASA直播...</div>
@@ -20,7 +37,21 @@
             style="display: none;">
         </iframe>
     </div>
+
+    <!-- 下部：天气 -->
+    <div class="dashboard-bottom" id="weather-container">
+        <div class="weather-main">
+            <div class="weather-temp" id="weather-temp">--°C</div>
+            <div class="weather-desc" id="weather-desc">加载中...</div>
+        </div>
+        <div class="weather-details">
+            <div id="weather-location">{{ weather_config.get('location_name', '北京市大兴区') }}</div>
+            <div id="weather-meta">湿度: --% | 风速: -- km/h</div>
+        </div>
+    </div>
 </div>
+
+<!-- 右侧面板：相册 -->
 <div class="sidebar">
     <div class="photo-container" id="photo-container">
         <div class="loading">加载中...</div>
@@ -30,6 +61,131 @@
 
 {% block extra_css %}
 <style>
+    /* 布局重构 */
+    .dashboard-left {
+        display: flex;
+        flex-direction: column;
+        background-color: #000;
+        height: 100%;
+    }
+
+    .dashboard-top {
+        flex: 0 0 auto; /* 高度自适应内容 */
+        padding: 20px 30px;
+        background: linear-gradient(to bottom, rgba(30,30,30,0.9), rgba(0,0,0,0));
+        color: #fff;
+        min-height: 180px;
+    }
+
+    .youtube-container {
+        flex: 1; /* 占据剩余空间，但受限于aspect-ratio */
+        width: 100%;
+        position: relative;
+        /* 保持16:9比例，但在flex布局中可能需要特殊处理 */
+        display: flex;
+        justify-content: center;
+        background: #000;
+    }
+    
+    /* 强制视频保持16:9比例居中 */
+    .youtube-iframe {
+        aspect-ratio: 16/9;
+        width: 100%;
+        height: auto;
+        max-height: 100%;
+        margin: auto;
+    }
+
+    .dashboard-bottom {
+        flex: 0 0 auto;
+        padding: 20px 30px;
+        background: linear-gradient(to top, rgba(30,30,30,0.9), rgba(0,0,0,0));
+        color: #fff;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        min-height: 100px;
+    }
+
+    /* 时间日期样式 */
+    .time-display {
+        font-size: 4.5rem;
+        font-weight: 700;
+        font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        line-height: 1;
+        margin-bottom: 10px;
+        cursor: pointer;
+        letter-spacing: 2px;
+    }
+
+    .date-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+
+    .date-left {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .date-solar {
+        font-size: 1.4rem;
+        margin-bottom: 5px;
+        color: #ddd;
+    }
+
+    .date-lunar-text {
+        font-size: 1.2rem;
+        color: #aaa;
+        margin-bottom: 2px;
+    }
+
+    .date-ganzhi {
+        font-size: 1rem;
+        color: #888;
+    }
+
+    .date-big-day {
+        font-size: 5rem;
+        font-weight: bold;
+        line-height: 0.8;
+        color: #fff;
+        opacity: 0.9;
+        padding-right: 10px;
+    }
+
+    /* 天气样式 */
+    .weather-main {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .weather-temp {
+        font-size: 3rem;
+        font-weight: bold;
+    }
+
+    .weather-desc {
+        font-size: 1.2rem;
+        color: #ccc;
+    }
+
+    .weather-details {
+        text-align: right;
+        font-size: 1rem;
+        color: #aaa;
+    }
+    
+    #weather-location {
+        font-size: 1.2rem;
+        color: #fff;
+        margin-bottom: 4px;
+    }
+
+    /* 相册样式保持不变 */
     .photo-list {
         padding: 10px;
     }
@@ -55,6 +211,9 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- 引入农历库 -->
+<script src="https://cdn.jsdelivr.net/npm/lunar-javascript@1.6.12/lunar.js"></script>
+
 <script>
     // 抑制 YouTube iframe 内部的错误日志（不影响功能）
     const originalError = console.error;
@@ -79,7 +238,104 @@
     const slideshowDelay = ({{ slideshow_interval_seconds|default(10) }}) * 1000;
     const showMetadata = {{ 'true' if show_metadata else 'false' }};
     
-    // 加载YouTube频道
+    // 配置
+    let is24Hour = {{ 'true' if time_format == '24h' else 'false' }};
+    const weatherLat = {{ weather_config.get('latitude', 39.73) }};
+    const weatherLon = {{ weather_config.get('longitude', 116.33) }};
+
+    // --- 时间与日期逻辑 ---
+    function updateTime() {
+        const now = new Date();
+        
+        // 1. 更新时间
+        let hours = now.getHours();
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const seconds = String(now.getSeconds()).padStart(2, '0');
+        let ampm = '';
+
+        if (!is24Hour) {
+            ampm = hours >= 12 ? ' PM' : ' AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12; // the hour '0' should be '12'
+        }
+        hours = String(hours).padStart(2, '0');
+        document.getElementById('time-display').textContent = `${hours}:${minutes}:${seconds}${ampm}`;
+
+        // 2. 更新日期 (如果跨天)
+        // 为了性能，可以不用每秒都重新计算农历，但这里简单起见直接更新
+        const year = now.getFullYear();
+        const month = now.getMonth() + 1;
+        const date = now.getDate();
+        const day = now.getDay();
+        const days = ['日', '一', '二', '三', '四', '五', '六'];
+        
+        document.getElementById('date-solar').textContent = `${year}年 ${month}月 ${date}日 星期${days[day]}`;
+        document.getElementById('date-big-day').textContent = date;
+
+        // 3. 更新农历 (依赖 lunar.js)
+        if (window.Lunar) {
+            const lunar = Lunar.fromDate(now);
+            const monthStr = lunar.getMonthInChinese();
+            const dayStr = lunar.getDayInChinese();
+            document.getElementById('date-lunar-text').textContent = `${monthStr}月${dayStr}`;
+            
+            const yearGanZhi = lunar.getYearInGanZhi();
+            const shengXiao = lunar.getYearShengXiao();
+            const monthGanZhi = lunar.getMonthInGanZhi();
+            const dayGanZhi = lunar.getDayInGanZhi();
+            
+            document.getElementById('date-ganzhi').textContent = `${yearGanZhi}年 【${shengXiao}年】 ${monthGanZhi}月 ${dayGanZhi}日`;
+        }
+    }
+
+    function toggleTimeFormat() {
+        is24Hour = !is24Hour;
+        updateTime();
+    }
+
+    setInterval(updateTime, 1000);
+    updateTime(); // Init immediately
+
+    // --- 天气逻辑 (Open-Meteo) ---
+    // WMO Weather interpretation codes (WW)
+    const weatherCodes = {
+        0: '晴', 1: '晴间多云', 2: '多云', 3: '阴',
+        45: '雾', 48: '白霜',
+        51: '小毛毛雨', 53: '毛毛雨', 55: '大毛毛雨',
+        61: '小雨', 63: '中雨', 65: '大雨',
+        80: '阵雨', 81: '中阵雨', 82: '大阵雨',
+        71: '小雪', 73: '中雪', 75: '大雪',
+        95: '雷雨', 96: '雷雨伴冰雹', 99: '大雷雨伴冰雹'
+    };
+
+    async function updateWeather() {
+        try {
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${weatherLat}&longitude=${weatherLon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&timezone=auto`;
+            const res = await fetch(url);
+            const data = await res.json();
+            
+            if (data.current) {
+                const current = data.current;
+                const temp = Math.round(current.temperature_2m);
+                const code = current.weather_code;
+                const desc = weatherCodes[code] || '未知';
+                const humidity = current.relative_humidity_2m;
+                const wind = current.wind_speed_10m;
+
+                document.getElementById('weather-temp').textContent = `${temp}°C`;
+                document.getElementById('weather-desc').textContent = desc;
+                document.getElementById('weather-meta').textContent = `湿度: ${humidity}% | 风速: ${wind} km/h`;
+            }
+        } catch (e) {
+            console.error("获取天气失败", e);
+            document.getElementById('weather-desc').textContent = "天气获取失败";
+        }
+    }
+
+    updateWeather();
+    setInterval(updateWeather, 1800000); // 每30分钟更新一次
+
+    // --- 原有功能：加载YouTube频道 ---
     async function loadYouTubeChannel(channelName) {
         try {
             console.log('正在加载YouTube频道:', channelName);

@@ -129,13 +129,17 @@ async def index(request: Request):
     layout = config.get('ui.layout', 'side-by-side') or 'side-by-side'
     slideshow_interval = config.get('ui.slideshow_interval_seconds', 10) or 10
     show_metadata = config.get('ui.show_metadata', True)
+    time_format = config.get('ui.time_format', '24h')
+    weather_config = config.get('weather', {})
     
     return templates.TemplateResponse("index.html", {
         "request": request,
         "default_channel": default_channel,
         "layout": layout,
         "slideshow_interval_seconds": slideshow_interval,
-        "show_metadata": show_metadata
+        "show_metadata": show_metadata,
+        "time_format": time_format,
+        "weather_config": weather_config
     })
 
 

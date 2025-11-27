@@ -71,7 +71,13 @@ class Config:
                 'slideshow_interval_seconds': 10,
                 'show_metadata': True,
                 'language': 'zh-CN',
-                'timezone': 'Asia/Shanghai'
+                'timezone': 'Asia/Shanghai',
+                'time_format': '24h'
+            },
+            'weather': {
+                'location_name': '北京市大兴区',
+                'latitude': 39.73,
+                'longitude': 116.33
             },
             'display': {
                 'kiosk': True,
