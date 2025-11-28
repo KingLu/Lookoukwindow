@@ -11,6 +11,8 @@ router = APIRouter(prefix="/api/settings", tags=["settings"])
 class SettingsUpdateRequest(BaseModel):
     layout: Optional[str] = None
     slideshow_interval_seconds: Optional[int] = None
+    slideshow_order: Optional[str] = None  # 'shuffle' or 'sequential'
+    slideshow_transition: Optional[str] = None  # 'fade', 'slide-left', etc.
     show_metadata: Optional[bool] = None
     screen_rotation: Optional[str] = None
     scale: Optional[float] = None
@@ -38,6 +40,8 @@ async def get_settings(config: Config = Depends(get_config)):
     return {
         "layout": config.get('ui.layout', 'side-by-side'),
         "slideshow_interval_seconds": config.get('ui.slideshow_interval_seconds', 10),
+        "slideshow_order": config.get('ui.slideshow_order', 'shuffle'),
+        "slideshow_transition": config.get('ui.slideshow_transition', 'fade'),
         "show_metadata": config.get('ui.show_metadata', True),
         "screen_rotation": config.get('display.screen_rotation', 'normal'),
         "scale": config.get('display.scale', 1.0),
@@ -65,6 +69,10 @@ async def update_settings(
         config.set('ui.layout', settings.layout)
     if settings.slideshow_interval_seconds is not None:
         config.set('ui.slideshow_interval_seconds', settings.slideshow_interval_seconds)
+    if settings.slideshow_order is not None:
+        config.set('ui.slideshow_order', settings.slideshow_order)
+    if settings.slideshow_transition is not None:
+        config.set('ui.slideshow_transition', settings.slideshow_transition)
     if settings.show_metadata is not None:
         config.set('ui.show_metadata', settings.show_metadata)
     if settings.screen_rotation is not None:
