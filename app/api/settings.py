@@ -22,6 +22,9 @@ class SettingsUpdateRequest(BaseModel):
     finance_stocks: Optional[List[Dict[str, str]]] = None
     finance_ticker_speed_seconds: Optional[int] = None
     finance_stock_switch_interval_seconds: Optional[int] = None
+    energy_enabled: Optional[bool] = None
+    energy_start_time: Optional[str] = None
+    energy_end_time: Optional[str] = None
 
 
 def get_config() -> Config:
@@ -45,7 +48,10 @@ async def get_settings(config: Config = Depends(get_config)):
         "finance_indices": config.get('finance.indices', []),
         "finance_stocks": config.get('finance.stocks', []),
         "finance_ticker_speed_seconds": config.get('finance.ticker_speed_seconds', 30),
-        "finance_stock_switch_interval_seconds": config.get('finance.stock_switch_interval_seconds', 10)
+        "finance_stock_switch_interval_seconds": config.get('finance.stock_switch_interval_seconds', 10),
+        "energy_enabled": config.get('energy.enabled', True),
+        "energy_start_time": config.get('energy.start_time', '22:30'),
+        "energy_end_time": config.get('energy.end_time', '05:30')
     }
 
 
@@ -83,5 +89,12 @@ async def update_settings(
     if settings.finance_stock_switch_interval_seconds is not None:
         config.set('finance.stock_switch_interval_seconds', settings.finance_stock_switch_interval_seconds)
     
+    if settings.energy_enabled is not None:
+        config.set('energy.enabled', settings.energy_enabled)
+    if settings.energy_start_time is not None:
+        config.set('energy.start_time', settings.energy_start_time)
+    if settings.energy_end_time is not None:
+        config.set('energy.end_time', settings.energy_end_time)
+
     config.save()
     return {"status": "success", "message": "设置更新成功"}
