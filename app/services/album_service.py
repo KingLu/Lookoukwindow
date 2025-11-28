@@ -3,11 +3,14 @@ import json
 import shutil
 import uuid
 import logging
+import random
+import math
 from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Optional
-from PIL import Image
+from PIL import Image, ExifTags
 from fastapi import UploadFile
+from geopy.geocoders import Nominatim
 
 from ..core.config import Config
 
@@ -22,6 +25,9 @@ class AlbumService:
         # 确保目录存在
         self.albums_dir.mkdir(parents=True, exist_ok=True)
         self.thumbnails_dir.mkdir(parents=True, exist_ok=True)
+        
+        # 初始化地理位置解析器
+        self.geolocator = Nominatim(user_agent="lookoukwindow")
 
     def create_album(self, name: str, description: str = "") -> Dict:
         """创建新相册"""
@@ -52,15 +58,19 @@ class AlbumService:
                 if metadata:
                     # 统计照片数量
                     photos = list(album_dir.glob("*"))
-                    photo_count = len([p for p in photos if p.suffix.lower() in ['.jpg', '.jpeg', '.png', '.webp']])
+                    photo_count = len([p for p in photos if p.suffix.lower() in ['.jpg', '.jpeg', '.png', '.webp', '.mp4', '.mov']])
                     
                     metadata["photo_count"] = photo_count
                     metadata["active"] = metadata["id"] in active_albums
                     
                     # 获取封面图（第一张照片）
                     if photo_count > 0:
-                        # 简单找第一张
+                        # 优先找图片作为封面
                         first_photo = next((p for p in photos if p.suffix.lower() in ['.jpg', '.jpeg', '.png', '.webp']), None)
+                        # 如果没有图片，尝试找视频（暂无缩略图）
+                        if not first_photo:
+                            first_photo = next((p for p in photos if p.suffix.lower() in ['.mp4', '.mov']), None)
+                            
                         if first_photo:
                             metadata["cover_photo"] = first_photo.name
                     
@@ -119,52 +129,72 @@ class AlbumService:
         return metadata
 
     async def upload_photo(self, album_id: str, file: UploadFile) -> Dict:
-        """上传照片"""
+        """上传照片或视频"""
         album_path = self.albums_dir / album_id
         if not album_path.exists():
             raise ValueError("相册不存在")
             
         # 生成安全的文件名
-        ext = Path(file.filename).suffix
+        ext = Path(file.filename).suffix.lower()
         if not ext:
             ext = ".jpg"
+            
+        # 简单的后缀检查
+        if ext not in ['.jpg', '.jpeg', '.png', '.webp', '.mp4', '.mov']:
+             # 默认处理，或者报错
+             pass
+
         photo_id = str(uuid.uuid4())
         filename = f"{photo_id}{ext}"
         file_path = album_path / filename
         
-        # 保存原图
+        # 保存文件
         content = await file.read()
         with open(file_path, "wb") as f:
             f.write(content)
             
-        # 生成缩略图
-        self._generate_thumbnail(album_id, filename)
+        # 生成缩略图 (仅图片)
+        if ext in ['.jpg', '.jpeg', '.png', '.webp']:
+            self._generate_thumbnail(album_id, filename)
         
         return {
             "id": photo_id,
             "filename": filename,
             "url": f"/api/albums/{album_id}/photos/{filename}",
-            "thumbnail_url": f"/api/albums/{album_id}/photos/{filename}/thumbnail"
+            "thumbnail_url": f"/api/albums/{album_id}/photos/{filename}/thumbnail" if ext in ['.jpg', '.jpeg', '.png', '.webp'] else None
         }
 
     def get_photos(self, album_id: str) -> List[Dict]:
-        """获取相册内的照片列表"""
+        """获取相册内的照片/视频列表"""
         album_path = self.albums_dir / album_id
         if not album_path.exists():
             return []
             
         photos = []
+        valid_exts = ['.jpg', '.jpeg', '.png', '.webp', '.mp4', '.mov']
+        
         for file_path in album_path.glob("*"):
-            if file_path.suffix.lower() in ['.jpg', '.jpeg', '.png', '.webp']:
+            suffix = file_path.suffix.lower()
+            if suffix in valid_exts:
                 stat = file_path.stat()
-                photos.append({
+                is_video = suffix in ['.mp4', '.mov']
+                
+                photo_data = {
                     "id": file_path.stem,
                     "filename": file_path.name,
                     "size": stat.st_size,
                     "created_at": datetime.fromtimestamp(stat.st_ctime).isoformat(),
                     "url": f"/api/albums/{album_id}/photos/{file_path.name}",
-                    "thumbnail_url": f"/api/albums/{album_id}/photos/{file_path.name}/thumbnail"
-                })
+                    "type": "video" if is_video else "image",
+                    "thumbnail_url": f"/api/albums/{album_id}/photos/{file_path.name}/thumbnail" if not is_video else None
+                }
+                
+                # 提取EXIF信息 (仅图片)
+                if not is_video:
+                    exif = self._get_exif_data(file_path)
+                    photo_data.update(exif)
+                
+                photos.append(photo_data)
         
         # 按创建时间倒序
         photos.sort(key=lambda x: x["created_at"], reverse=True)
@@ -197,9 +227,15 @@ class AlbumService:
                 p["album_name"] = album["name"]
                 all_photos.append(p)
                 
-        # 可以选择随机打乱或按时间排序
-        # 这里按时间倒序
-        all_photos.sort(key=lambda x: x["created_at"], reverse=True)
+        # 获取播放顺序配置，默认乱序
+        order = self.config.get("ui.slideshow_order", "shuffle")
+        
+        if order == "shuffle":
+            random.shuffle(all_photos)
+        else:
+            # 按时间倒序
+            all_photos.sort(key=lambda x: x["created_at"], reverse=True)
+            
         return all_photos
 
     def _load_metadata(self, album_id: str) -> Optional[Dict]:
@@ -238,3 +274,98 @@ class AlbumService:
         except Exception as e:
             logger.error(f"生成缩略图失败 {filename}: {e}")
 
+    def _convert_to_degrees(self, value):
+        """将 GPS 坐标 (度, 分, 秒) 转换为十进制格式"""
+        d, m, s = value
+        return d + (m / 60.0) + (s / 3600.0)
+
+    def _get_location_name(self, lat, lon):
+        """通过逆地理编码获取位置名称"""
+        try:
+            location = self.geolocator.reverse(f"{lat}, {lon}", language='zh-CN')
+            if location:
+                address = location.raw.get('address', {})
+                city = address.get('city', '')
+                state = address.get('state', '')
+                district = address.get('district', '')
+                
+                # 优先显示 市/区，或者 省/市
+                if city and district:
+                    return f"{city}{district}"
+                elif state and city:
+                    return f"{state}{city}"
+                elif state:
+                    return state
+                elif city:
+                    return city
+                else:
+                    return location.address.split(',')[0] # fallback
+        except Exception as e:
+            logger.error(f"逆地理编码失败: {e}")
+        return None
+
+    def _get_exif_data(self, file_path: Path) -> Dict:
+        """提取EXIF信息"""
+        exif_info = {}
+        try:
+            with Image.open(file_path) as img:
+                if hasattr(img, '_getexif'):
+                    exif = img._getexif()
+                    if exif:
+                        gps_info = {}
+                        for tag, value in exif.items():
+                            decoded = ExifTags.TAGS.get(tag, tag)
+                            if decoded == "DateTimeOriginal":
+                                # 格式化日期
+                                try:
+                                    dt = datetime.strptime(value, "%Y:%m:%d %H:%M:%S")
+                                    exif_info["date_taken"] = dt.isoformat()
+                                except:
+                                    exif_info["date_taken"] = value
+                            elif decoded == "Make":
+                                exif_info["make"] = str(value).strip()
+                            elif decoded == "Model":
+                                exif_info["model"] = str(value).strip()
+                            elif decoded == "GPSInfo":
+                                gps_info = value
+                        
+                        # 解析 GPS 信息
+                        if gps_info:
+                            try:
+                                # GPSLatitudeRef: 'N' or 'S'
+                                # GPSLatitude: ((deg, 1), (min, 1), (sec, 100))
+                                # GPSLongitudeRef: 'E' or 'W'
+                                # GPSLongitude: ((deg, 1), (min, 1), (sec, 100))
+                                
+                                lat_ref = gps_info.get(1)
+                                lat = gps_info.get(2)
+                                lon_ref = gps_info.get(3)
+                                lon = gps_info.get(4)
+                                
+                                if lat and lon and lat_ref and lon_ref:
+                                    lat_val = self._convert_to_degrees(lat)
+                                    if lat_ref != 'N':
+                                        lat_val = -lat_val
+                                        
+                                    lon_val = self._convert_to_degrees(lon)
+                                    if lon_ref != 'E':
+                                        lon_val = -lon_val
+                                        
+                                    exif_info["location"] = {
+                                        "lat": lat_val,
+                                        "lon": lon_val
+                                    }
+                                    exif_info["has_location"] = True
+                                    
+                                    # 获取位置名称
+                                    location_name = self._get_location_name(lat_val, lon_val)
+                                    if location_name:
+                                        exif_info["location_name"] = location_name
+
+                            except Exception as e:
+                                logger.error(f"GPS 解析失败: {e}")
+                                pass
+
+        except Exception:
+            pass
+        return exif_info
