@@ -133,6 +133,7 @@ async def index(request: Request):
     time_format = config.get('ui.time_format', '24h')
     weather_config = config.get('weather', {})
     finance_config = config.get('finance', {})
+    energy_config = config.get('energy', {})
     
     return templates.TemplateResponse("index.html", {
         "request": request,
@@ -142,7 +143,8 @@ async def index(request: Request):
         "show_metadata": show_metadata,
         "time_format": time_format,
         "weather_config": weather_config,
-        "finance_config": finance_config
+        "finance_config": finance_config,
+        "energy_config": energy_config
     })
 
 
