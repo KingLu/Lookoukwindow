@@ -32,6 +32,7 @@ class Config:
     
     def _get_default_config_path(self) -> str:
         """获取默认配置文件路径 (项目根目录/data/config.yaml)"""
+        # 始终使用项目根目录下的 data 目录
         config_dir = self.project_root / "data"
         config_dir.mkdir(parents=True, exist_ok=True)
         return str(config_dir / "config.yaml")
@@ -216,7 +217,8 @@ class Config:
         path_str = self.get('paths.data_dir', 'data')
         path = Path(path_str)
         if not path.is_absolute():
-            path = self.project_root / path
+            # 如果是相对路径，相对于项目根目录
+            return self.project_root / path
         return path
     
     @property
