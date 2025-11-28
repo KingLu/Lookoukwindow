@@ -11,7 +11,7 @@ from pathlib import Path
 
 from .core.config import Config
 from .core.auth import AuthManager
-from .api import auth, youtube, settings, albums
+from .api import auth, youtube, settings, albums, finance
 
 # 配置日志
 logging.basicConfig(
@@ -57,6 +57,7 @@ app.include_router(auth.router)
 app.include_router(youtube.router)
 app.include_router(settings.router)
 app.include_router(albums.router)
+app.include_router(finance.router)
 
 # 配置模板和静态文件
 templates_dir = Path(__file__).parent / "templates"

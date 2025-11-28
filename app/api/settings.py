@@ -1,7 +1,7 @@
 """设置API路由"""
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List, Dict
 
 from ..core.config import Config
 
@@ -18,6 +18,8 @@ class SettingsUpdateRequest(BaseModel):
     weather_location_name: Optional[str] = None
     weather_latitude: Optional[float] = None
     weather_longitude: Optional[float] = None
+    finance_indices: Optional[List[Dict[str, str]]] = None
+    finance_stocks: Optional[List[Dict[str, str]]] = None
 
 
 def get_config() -> Config:
@@ -37,7 +39,9 @@ async def get_settings(config: Config = Depends(get_config)):
         "time_format": config.get('ui.time_format', '24h'),
         "weather_location_name": config.get('weather.location_name', '北京市大兴区'),
         "weather_latitude": config.get('weather.latitude', 39.73),
-        "weather_longitude": config.get('weather.longitude', 116.33)
+        "weather_longitude": config.get('weather.longitude', 116.33),
+        "finance_indices": config.get('finance.indices', []),
+        "finance_stocks": config.get('finance.stocks', [])
     }
 
 
@@ -65,6 +69,11 @@ async def update_settings(
         config.set('weather.latitude', settings.weather_latitude)
     if settings.weather_longitude is not None:
         config.set('weather.longitude', settings.weather_longitude)
+    
+    if settings.finance_indices is not None:
+        config.set('finance.indices', settings.finance_indices)
+    if settings.finance_stocks is not None:
+        config.set('finance.stocks', settings.finance_stocks)
     
     config.save()
     return {"status": "success", "message": "设置更新成功"}

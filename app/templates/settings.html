@@ -16,6 +16,7 @@
             background: #1a1a1a;
             color: #fff;
             padding: 20px;
+            padding-bottom: 80px; /* 为底部悬浮栏留出空间 */
         }
         
         .container {
@@ -91,6 +92,16 @@
             background: #7f8c8d;
         }
         
+        button.primary-btn {
+            background: #27ae60;
+            font-weight: bold;
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+        button.primary-btn:hover {
+            background: #219150;
+        }
+        
         .back-link {
             display: inline-block;
             margin-bottom: 20px;
@@ -99,22 +110,46 @@
         }
         
         .status {
-            margin-top: 10px;
+            margin-top: 0;
             padding: 10px;
             border-radius: 4px;
             display: none;
+            margin-right: 10px;
         }
         
         .status.success {
             background: rgba(39, 174, 96, 0.2);
             color: #27ae60;
-            display: block;
+            display: inline-block;
         }
         
         .status.error {
             background: rgba(231, 76, 60, 0.2);
             color: #e74c3c;
-            display: block;
+            display: inline-block;
+        }
+
+        /* Bottom Sticky Bar */
+        .bottom-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(26, 26, 26, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 15px 0;
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.5);
+        }
+
+        .bottom-bar-content {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
         }
 
         /* Album Grid */
@@ -350,41 +385,45 @@
             </div>
         </div>
         
-        <div class="section">
-            <h2>显示设置</h2>
-            <div class="form-group">
-                <label>布局模式</label>
-                <select id="layout">
-                    <option value="side-by-side">并排显示 (默认)</option>
-                    <option value="stacked">上下堆叠</option>
-                    <option value="picture-in-picture">画中画模式</option>
-                </select>
+        <!-- Main Settings Form Container -->
+        <div id="mainSettings">
+            <div class="section">
+                <h2>显示设置</h2>
+                <div class="form-group">
+                    <label>布局模式</label>
+                    <select id="layout">
+                        <option value="side-by-side">并排显示 (默认)</option>
+                        <option value="stacked">上下堆叠</option>
+                        <option value="picture-in-picture">画中画模式</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>轮播间隔（秒）</label>
+                    <input type="number" id="slideshowInterval" min="1" max="3600" value="10">
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="showMetadata"> 显示照片信息（文件名/时间）
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label>屏幕旋转</label>
+                    <select id="screenRotation">
+                        <option value="normal">正常 (0°)</option>
+                        <option value="left">左转 (90°)</option>
+                        <option value="right">右转 (90°)</option>
+                        <option value="inverted">倒置 (180°)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>时间格式</label>
+                    <select id="timeFormat">
+                        <option value="24h">24小时制 (14:30)</option>
+                        <option value="12h">12小时制 (02:30 PM)</option>
+                    </select>
+                </div>
             </div>
-            <div class="form-group">
-                <label>轮播间隔（秒）</label>
-                <input type="number" id="slideshowInterval" min="1" max="3600" value="10">
-            </div>
-            <div class="form-group">
-                <label>
-                    <input type="checkbox" id="showMetadata"> 显示照片信息（文件名/时间）
-                </label>
-            </div>
-            <div class="form-group">
-                <label>屏幕旋转</label>
-                <select id="screenRotation">
-                    <option value="normal">正常 (0°)</option>
-                    <option value="left">左转 (90°)</option>
-                    <option value="right">右转 (90°)</option>
-                    <option value="inverted">倒置 (180°)</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>时间格式</label>
-                <select id="timeFormat">
-                    <option value="24h">24小时制 (14:30)</option>
-                    <option value="12h">12小时制 (02:30 PM)</option>
-                </select>
-            </div>
+
             <div class="section">
                 <h2>天气设置</h2>
                 <div class="form-group">
@@ -405,14 +444,34 @@
                     提示：您可以在 Google Maps 上右键点击位置获取经纬度。
                 </p>
             </div>
-            <button onclick="saveSettings()">保存显示设置</button>
-            <div class="status" id="status"></div>
+            
+            <div class="section">
+                <h2>金融数据设置</h2>
+                <div class="form-group">
+                    <label>指数列表 (Symbol, Name)</label>
+                    <div style="font-size:12px;color:#999;margin-bottom:5px;">每行一个，格式：代码,名称 (例如: ^IXIC,纳斯达克)</div>
+                    <textarea id="financeIndices" rows="6" style="width:100%;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;padding:8px;border-radius:4px;font-family:monospace;font-size:13px;"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>自选股列表 (Symbol, Name)</label>
+                    <div style="font-size:12px;color:#999;margin-bottom:5px;">每行一个，格式：代码,名称 (例如: AAPL,苹果)</div>
+                    <textarea id="financeStocks" rows="6" style="width:100%;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;padding:8px;border-radius:4px;font-family:monospace;font-size:13px;"></textarea>
+                </div>
+            </div>
         </div>
         
         <div class="section">
             <h2>YouTube 频道配置</h2>
             <div id="channelsList" style="margin-bottom: 15px;"></div>
             <button onclick="addChannel()">+ 添加直播频道</button>
+        </div>
+    </div>
+
+    <!-- Sticky Bottom Bar -->
+    <div class="bottom-bar">
+        <div class="bottom-bar-content">
+            <div id="status" class="status"></div>
+            <button onclick="saveSettings()" class="primary-btn">保存所有设置</button>
         </div>
     </div>
 
@@ -729,12 +788,31 @@
                 document.getElementById('weatherLocationName').value = data.weather_location_name || '北京市大兴区';
                 document.getElementById('weatherLatitude').value = data.weather_latitude || 39.73;
                 document.getElementById('weatherLongitude').value = data.weather_longitude || 116.33;
+                
+                // Load finance settings (convert array to CSV-like string)
+                const indices = data.finance_indices || [];
+                document.getElementById('financeIndices').value = indices.map(i => `${i.symbol},${i.name}`).join('\n');
+                
+                const stocks = data.finance_stocks || [];
+                document.getElementById('financeStocks').value = stocks.map(s => `${s.symbol},${s.name}`).join('\n');
+
             } catch (error) {
                 console.error('加载设置失败:', error);
             }
         }
 
         async function saveSettings() {
+            // Helper to parse textarea to array of objects
+            const parseFinanceConfig = (text) => {
+                return text.split('\n')
+                    .map(line => line.trim())
+                    .filter(line => line && line.includes(','))
+                    .map(line => {
+                        const [symbol, ...nameParts] = line.split(',');
+                        return { symbol: symbol.trim(), name: nameParts.join(',').trim() };
+                    });
+            };
+
             const settings = {
                 layout: document.getElementById('layout').value,
                 slideshow_interval_seconds: parseInt(document.getElementById('slideshowInterval').value),
@@ -743,7 +821,9 @@
                 time_format: document.getElementById('timeFormat').value,
                 weather_location_name: document.getElementById('weatherLocationName').value,
                 weather_latitude: parseFloat(document.getElementById('weatherLatitude').value),
-                weather_longitude: parseFloat(document.getElementById('weatherLongitude').value)
+                weather_longitude: parseFloat(document.getElementById('weatherLongitude').value),
+                finance_indices: parseFinanceConfig(document.getElementById('financeIndices').value),
+                finance_stocks: parseFinanceConfig(document.getElementById('financeStocks').value)
             };
             
             try {

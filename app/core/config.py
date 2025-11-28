@@ -79,6 +79,26 @@ class Config:
                 'latitude': 39.73,
                 'longitude': 116.33
             },
+            'finance': {
+                'indices': [
+                    {'symbol': '000001.SS', 'name': '上证指数'},
+                    {'symbol': '399001.SZ', 'name': '深证成指'},
+                    {'symbol': '^IXIC', 'name': '纳斯达克'},
+                    {'symbol': '^DJI', 'name': '道琼斯'},
+                    {'symbol': '^HSI', 'name': '恒生指数'},
+                    {'symbol': '^VIX', 'name': 'VIX恐慌'},
+                    {'symbol': 'GC=F', 'name': '黄金'},
+                    {'symbol': 'BTC-USD', 'name': 'BTC'},
+                    {'symbol': 'ETH-USD', 'name': 'ETH'}
+                ],
+                'stocks': [
+                    {'symbol': '300253.SZ', 'name': '卫宁健康'},
+                    {'symbol': '600584.SS', 'name': '长电科技'},
+                    {'symbol': '1810.HK', 'name': '小米集团'},
+                    {'symbol': '0981.HK', 'name': '中芯国际'}
+                ],
+                'update_interval_seconds': 60
+            },
             'display': {
                 'kiosk': True,
                 'screen_rotation': 'normal',

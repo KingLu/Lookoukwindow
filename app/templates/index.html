@@ -1,26 +1,31 @@
 {% extends "base.html" %}
 
-{% block title %}Lookoukwindow - NASA 太空直播{% endblock %}
+{% block title %}Lookoukwindow - 金融信息屏{% endblock %}
 
 {% block content %}
-<!-- 左侧面板：时间(上) + 直播(中) + 天气(下) -->
+<!-- 左侧面板：综合信息(上) + 直播(中) + 金融(下) -->
 <div class="main-content dashboard-left">
-    <!-- 上部：日期时间 -->
+    <!-- 上部：综合生活信息栏 (紧凑) -->
     <div class="dashboard-top">
-        <div class="time-display" id="time-display" onclick="toggleTimeFormat()">00:00:00</div>
-        <div class="date-row">
-            <div class="date-left">
-                <div class="date-solar" id="date-solar">2025年 1月 1日 星期一</div>
-                <div class="date-lunar-text" id="date-lunar-text">腊月初八</div>
-                <div class="date-ganzhi" id="date-ganzhi">乙巳年 【蛇年】</div>
+        <div class="info-left">
+            <div class="time-display-compact" id="time-display" onclick="toggleTimeFormat()">00:00</div>
+            <div class="date-compact">
+                <div id="date-solar">2025/01/01 周一</div>
+                <div id="date-lunar-ganzhi" style="font-size: 0.9em; color: #aaa;">腊月初八 乙巳年</div>
             </div>
-            <div class="date-right">
-                <div class="date-big-day" id="date-big-day">1</div>
+        </div>
+        <div class="info-right">
+            <div class="weather-compact">
+                <div id="weather-icon" style="font-size: 2rem;">🌤️</div>
+                <div class="weather-text">
+                    <div id="weather-temp" style="font-weight: bold;">--°C</div>
+                    <div id="weather-location" style="font-size: 0.8rem; color: #aaa;">{{ weather_config.get('location_name', '北京市') }}</div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- 中部：直播 -->
+    <!-- 中部：直播 (Flex grow 自动填充) -->
     <div class="youtube-container">
         <div id="youtube-loading" style="display: flex; align-items: center; justify-content: center; height: 100%; color: #fff;">
             <div>正在加载NASA直播...</div>
@@ -38,15 +43,26 @@
         </iframe>
     </div>
 
-    <!-- 下部：天气 -->
-    <div class="dashboard-bottom" id="weather-container">
-        <div class="weather-main">
-            <div class="weather-temp" id="weather-temp">--°C</div>
-            <div class="weather-desc" id="weather-desc">加载中...</div>
+    <!-- 下部：金融信息面板 -->
+    <div class="dashboard-bottom-finance">
+        <!-- 1. 指数栏 (无缝滚动跑马灯) -->
+        <div class="indices-ticker" id="indices-container">
+            <!-- 动态生成 .indices-track -->
+            <div class="loading-text" style="padding: 10px; color: #999;">加载指数数据...</div>
         </div>
-        <div class="weather-details">
-            <div id="weather-location">{{ weather_config.get('location_name', '北京市大兴区') }}</div>
-            <div id="weather-meta">湿度: --% | 风速: -- km/h</div>
+        
+        <!-- 2. 个股轮播 -->
+        <div class="stock-carousel" id="stock-carousel">
+            <div class="stock-info">
+                <div class="stock-name-price">
+                    <span id="stock-name">--</span>
+                    <span id="stock-price">--</span>
+                </div>
+                <div class="stock-change" id="stock-change">--</div>
+            </div>
+            <div class="stock-chart-container">
+                <canvas id="stockChart"></canvas>
+            </div>
         </div>
     </div>
 </div>
@@ -69,406 +85,477 @@
         height: 100%;
     }
 
+    /* Top Info Bar */
     .dashboard-top {
-        flex: 0 0 auto; /* 高度自适应内容 */
-        padding: 20px 30px;
-        background: linear-gradient(to bottom, rgba(30,30,30,0.9), rgba(0,0,0,0));
+        flex: 0 0 auto;
+        padding: 15px 25px;
+        background: linear-gradient(to bottom, rgba(40,40,40,0.95), rgba(20,20,20,0.8));
         color: #fff;
-        min-height: 180px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
     }
 
+    .info-left {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+    }
+
+    .time-display-compact {
+        font-size: 3.5rem;
+        font-weight: 700;
+        font-family: "Segoe UI", Roboto, monospace;
+        line-height: 1;
+        cursor: pointer;
+    }
+
+    .date-compact {
+        display: flex;
+        flex-direction: column;
+        font-size: 1.1rem;
+    }
+
+    .info-right {
+        display: flex;
+        align-items: center;
+    }
+
+    .weather-compact {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        text-align: right;
+    }
+
+    /* Mid Video */
     .youtube-container {
-        flex: 1; /* 占据剩余空间，但受限于aspect-ratio */
+        flex: 1;
         width: 100%;
         position: relative;
-        /* 保持16:9比例，但在flex布局中可能需要特殊处理 */
         display: flex;
         justify-content: center;
+        align-items: center;
         background: #000;
+        overflow: hidden;
     }
     
-    /* 强制视频保持16:9比例居中 */
     .youtube-iframe {
         aspect-ratio: 16/9;
         width: 100%;
         height: auto;
         max-height: 100%;
-        margin: auto;
+        max-width: 100%; 
     }
 
-    .dashboard-bottom {
-        flex: 0 0 auto;
-        padding: 20px 30px;
-        background: linear-gradient(to top, rgba(30,30,30,0.9), rgba(0,0,0,0));
-        color: #fff;
+    /* Bottom Finance */
+    .dashboard-bottom-finance {
+        flex: 0 0 35%;
+        min-height: 250px;
+        background: linear-gradient(to top, rgba(30,30,30,0.95), rgba(10,10,10,0.9));
+        border-top: 1px solid rgba(255,255,255,0.1);
+        padding: 15px 0; /* 移除左右 padding 以便跑马灯贴边 */
         display: flex;
-        justify-content: space-between;
+        flex-direction: column;
+        gap: 15px;
+        overflow: hidden;
+    }
+
+    /* Indices Ticker Marquee */
+    .indices-ticker {
+        width: 100%;
+        overflow: hidden;
+        position: relative;
+        padding: 0 20px; /* 恢复视觉上的 padding */
+        mask-image: linear-gradient(to right, transparent, black 2%, black 98%, transparent);
+        -webkit-mask-image: linear-gradient(to right, transparent, black 2%, black 98%, transparent);
+    }
+
+    .indices-track {
+        display: flex;
+        gap: 20px;
+        width: max-content;
+        /* animation 将在 JS 中根据宽度动态设置，避免过快或过慢 */
+        animation: marquee 30s linear infinite; 
+    }
+    
+    .indices-track:hover {
+        animation-play-state: paused;
+    }
+
+    @keyframes marquee {
+        0% { transform: translateX(0); }
+        100% { transform: translateX(-50%); } /* 移动一半（即第一组内容的长度） */
+    }
+
+    .index-card {
+        background: rgba(255,255,255,0.08);
+        padding: 10px 15px;
+        border-radius: 6px;
+        min-width: 140px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        flex-shrink: 0; /* 防止被压缩 */
+    }
+
+    .index-name { font-size: 0.9rem; color: #aaa; margin-bottom: 4px; white-space: nowrap; }
+    .index-price { font-size: 1.2rem; font-weight: bold; }
+    .index-change { font-size: 1rem; }
+    
+    .up { color: #e74c3c; }
+    .down { color: #2ecc71; }
+
+    /* Stock Carousel */
+    .stock-carousel {
+        flex: 1;
+        display: flex;
+        gap: 20px;
+        background: rgba(0,0,0,0.3);
+        border-radius: 8px;
+        padding: 15px;
+        margin: 0 20px; /* 恢复左右边距 */
         align-items: center;
-        min-height: 100px;
     }
 
-    /* 时间日期样式 */
-    .time-display {
-        font-size: 4.5rem;
-        font-weight: 700;
-        font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        line-height: 1;
-        margin-bottom: 10px;
-        cursor: pointer;
-        letter-spacing: 2px;
-    }
-
-    .date-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-    }
-
-    .date-left {
+    .stock-info {
+        min-width: 180px;
         display: flex;
         flex-direction: column;
         justify-content: center;
     }
 
-    .date-solar {
-        font-size: 1.4rem;
-        margin-bottom: 5px;
-        color: #ddd;
-    }
-
-    .date-lunar-text {
-        font-size: 1.2rem;
-        color: #aaa;
-        margin-bottom: 2px;
-    }
-
-    .date-ganzhi {
-        font-size: 1rem;
-        color: #888;
-    }
-
-    .date-big-day {
-        font-size: 5rem;
-        font-weight: bold;
-        line-height: 0.8;
-        color: #fff;
-        opacity: 0.9;
-        padding-right: 10px;
-    }
-
-    /* 天气样式 */
-    .weather-main {
+    .stock-name-price {
         display: flex;
-        align-items: center;
-        gap: 15px;
-    }
-
-    .weather-temp {
-        font-size: 3rem;
-        font-weight: bold;
-    }
-
-    .weather-desc {
-        font-size: 1.2rem;
-        color: #ccc;
-    }
-
-    .weather-details {
-        text-align: right;
-        font-size: 1rem;
-        color: #aaa;
+        flex-direction: column;
+        margin-bottom: 5px;
     }
     
-    #weather-location {
-        font-size: 1.2rem;
+    #stock-name { font-size: 1.4rem; color: #ddd; margin-bottom: 5px; }
+    #stock-price { font-size: 2.2rem; font-weight: bold; }
+    #stock-change { font-size: 1.3rem; }
+
+    .stock-chart-container {
+        flex: 1;
+        height: 100%;
+        position: relative;
+        min-width: 0;
+    }
+
+    /* Photo Styles */
+    .photo-list { padding: 10px; }
+    .photo-item { margin-bottom: 10px; cursor: pointer; border-radius: 4px; overflow: hidden; transition: transform 0.2s; }
+    .photo-item:hover { transform: scale(1.02); }
+    .photo-item img { width: 100%; height: auto; display: block; }
+    
+    .photo-metadata {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 15px;
+        border-radius: 8px;
+        font-size: 14px;
+    }
+    
+    .photo-nav {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(0, 0, 0, 0.5);
+        border: none;
         color: #fff;
-        margin-bottom: 4px;
-    }
-
-    /* 相册样式保持不变 */
-    .photo-list {
-        padding: 10px;
-    }
-    
-    .photo-item {
-        margin-bottom: 10px;
+        font-size: 24px;
+        padding: 20px 15px;
         cursor: pointer;
-        border-radius: 4px;
-        overflow: hidden;
-        transition: transform 0.2s;
+        z-index: 100;
     }
     
-    .photo-item:hover {
-        transform: scale(1.02);
-    }
+    .photo-nav.prev { left: 20px; }
+    .photo-nav.next { right: 20px; }
     
-    .photo-item img {
-        width: 100%;
-        height: auto;
-        display: block;
-    }
+    .error { color: #ff4444; padding: 20px; text-align: center; }
 </style>
 {% endblock %}
 
 {% block extra_js %}
-<!-- 引入农历库 -->
+<!-- 引入库 -->
 <script src="https://cdn.jsdelivr.net/npm/lunar-javascript@1.6.12/lunar.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-    // 抑制 YouTube iframe 内部的错误日志（不影响功能）
+    // 抑制错误日志
     const originalError = console.error;
     console.error = function(...args) {
-        // 过滤掉 YouTube 内部的错误
         const errorMsg = args.join(' ');
-        if (errorMsg.includes('inspector.js') || 
-            errorMsg.includes('XMLHttpRequest') ||
-            errorMsg.includes('responseText') ||
-            errorMsg.includes('InvalidStateError')) {
-            // 静默处理 YouTube 内部错误
-            return;
-        }
+        if (errorMsg.includes('inspector.js') || errorMsg.includes('XMLHttpRequest') || errorMsg.includes('responseText') || errorMsg.includes('InvalidStateError')) return;
         originalError.apply(console, args);
     };
     
     const API_BASE = '/api';
-    let currentChannel = '{{ default_channel|default("NASA TV") }}';
-    let photos = [];
-    let currentPhotoIndex = 0;
-    let slideshowInterval = null;
-    const slideshowDelay = ({{ slideshow_interval_seconds|default(10) }}) * 1000;
-    const showMetadata = {{ 'true' if show_metadata else 'false' }};
     
     // 配置
     let is24Hour = {{ 'true' if time_format == '24h' else 'false' }};
     const weatherLat = {{ weather_config.get('latitude', 39.73) }};
     const weatherLon = {{ weather_config.get('longitude', 116.33) }};
 
-    // --- 时间与日期逻辑 ---
+    // ==================== 1. 日期时间逻辑 ====================
     function updateTime() {
         const now = new Date();
         
-        // 1. 更新时间
+        // Time
         let hours = now.getHours();
         const minutes = String(now.getMinutes()).padStart(2, '0');
-        const seconds = String(now.getSeconds()).padStart(2, '0');
         let ampm = '';
-
         if (!is24Hour) {
             ampm = hours >= 12 ? ' PM' : ' AM';
             hours = hours % 12;
-            hours = hours ? hours : 12; // the hour '0' should be '12'
+            hours = hours ? hours : 12;
         }
         hours = String(hours).padStart(2, '0');
-        document.getElementById('time-display').textContent = `${hours}:${minutes}:${seconds}${ampm}`;
+        document.getElementById('time-display').textContent = `${hours}:${minutes}${ampm}`;
 
-        // 2. 更新日期 (如果跨天)
-        // 为了性能，可以不用每秒都重新计算农历，但这里简单起见直接更新
-        const year = now.getFullYear();
-        const month = now.getMonth() + 1;
-        const date = now.getDate();
-        const day = now.getDay();
-        const days = ['日', '一', '二', '三', '四', '五', '六'];
-        
-        document.getElementById('date-solar').textContent = `${year}年 ${month}月 ${date}日 星期${days[day]}`;
-        document.getElementById('date-big-day').textContent = date;
+        // Date
+        const days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+        document.getElementById('date-solar').textContent = 
+            `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()} ${days[now.getDay()]}`;
 
-        // 3. 更新农历 (依赖 lunar.js)
+        // Lunar
         if (window.Lunar) {
             const lunar = Lunar.fromDate(now);
-            const monthStr = lunar.getMonthInChinese();
-            const dayStr = lunar.getDayInChinese();
-            document.getElementById('date-lunar-text').textContent = `${monthStr}月${dayStr}`;
-            
-            const yearGanZhi = lunar.getYearInGanZhi();
-            const shengXiao = lunar.getYearShengXiao();
-            const monthGanZhi = lunar.getMonthInGanZhi();
-            const dayGanZhi = lunar.getDayInGanZhi();
-            
-            document.getElementById('date-ganzhi').textContent = `${yearGanZhi}年 【${shengXiao}年】 ${monthGanZhi}月 ${dayGanZhi}日`;
+            document.getElementById('date-lunar-ganzhi').textContent = 
+                `${lunar.getMonthInChinese()}月${lunar.getDayInChinese()} · ${lunar.getYearInGanZhi()}年 [${lunar.getYearShengXiao()}]`;
         }
     }
-
-    function toggleTimeFormat() {
-        is24Hour = !is24Hour;
-        updateTime();
-    }
-
+    function toggleTimeFormat() { is24Hour = !is24Hour; updateTime(); }
     setInterval(updateTime, 1000);
-    updateTime(); // Init immediately
+    updateTime();
 
-    // --- 天气逻辑 (Open-Meteo) ---
-    // WMO Weather interpretation codes (WW)
-    const weatherCodes = {
-        0: '晴', 1: '晴间多云', 2: '多云', 3: '阴',
-        45: '雾', 48: '白霜',
-        51: '小毛毛雨', 53: '毛毛雨', 55: '大毛毛雨',
-        61: '小雨', 63: '中雨', 65: '大雨',
-        80: '阵雨', 81: '中阵雨', 82: '大阵雨',
-        71: '小雪', 73: '中雪', 75: '大雪',
-        95: '雷雨', 96: '雷雨伴冰雹', 99: '大雷雨伴冰雹'
-    };
-
+    // ==================== 2. 天气逻辑 ====================
+    const weatherCodes = { 0:'☀️',1:'🌤️',2:'⛅',3:'☁️',45:'🌫️',48:'❄️',51:'🌧️',53:'🌧️',55:'🌧️',61:'🌧️',63:'🌧️',65:'🌧️',80:'🌦️',95:'⛈️' };
     async function updateWeather() {
         try {
-            const url = `https://api.open-meteo.com/v1/forecast?latitude=${weatherLat}&longitude=${weatherLon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&timezone=auto`;
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${weatherLat}&longitude=${weatherLon}&current=temperature_2m,weather_code&timezone=auto`;
             const res = await fetch(url);
             const data = await res.json();
-            
             if (data.current) {
-                const current = data.current;
-                const temp = Math.round(current.temperature_2m);
-                const code = current.weather_code;
-                const desc = weatherCodes[code] || '未知';
-                const humidity = current.relative_humidity_2m;
-                const wind = current.wind_speed_10m;
-
+                const temp = Math.round(data.current.temperature_2m);
+                const icon = weatherCodes[data.current.weather_code] || '🌈';
                 document.getElementById('weather-temp').textContent = `${temp}°C`;
-                document.getElementById('weather-desc').textContent = desc;
-                document.getElementById('weather-meta').textContent = `湿度: ${humidity}% | 风速: ${wind} km/h`;
+                document.getElementById('weather-icon').textContent = icon;
             }
-        } catch (e) {
-            console.error("获取天气失败", e);
-            document.getElementById('weather-desc').textContent = "天气获取失败";
-        }
+        } catch (e) { console.error("天气错误", e); }
+    }
+    updateWeather();
+    setInterval(updateWeather, 1800000);
+
+    // ==================== 3. 金融逻辑 ====================
+    let stockChart = null;
+    let watchlist = [];
+    let currentStockIndex = 0;
+
+    // 获取指数并创建跑马灯
+    async function updateIndices() {
+        try {
+            const res = await fetch(`${API_BASE}/finance/indices`);
+            const data = await res.json();
+            const container = document.getElementById('indices-container');
+            container.innerHTML = '';
+            
+            if (data.length === 0) {
+                container.innerHTML = '<div style="color:#999; padding:10px;">暂无指数数据</div>';
+                return;
+            }
+
+            // 创建轨道
+            const track = document.createElement('div');
+            track.className = 'indices-track';
+            
+            // 生成卡片 HTML
+            const createCardsHtml = (items) => {
+                return items.map(idx => {
+                    const isUp = idx.change >= 0;
+                    const colorClass = isUp ? 'up' : 'down';
+                    const sign = isUp ? '+' : '';
+                    return `
+                        <div class="index-card">
+                            <div class="index-name">${idx.name}</div>
+                            <div class="index-price ${colorClass}">${idx.price.toFixed(2)}</div>
+                            <div class="index-change ${colorClass}">${sign}${idx.change_percent.toFixed(2)}%</div>
+                        </div>
+                    `;
+                }).join('');
+            };
+
+            // 填充两组数据以实现无缝衔接
+            track.innerHTML = createCardsHtml(data) + createCardsHtml(data);
+            container.appendChild(track);
+            
+            // 动态调整动画速度
+            // 假设每个卡片大概 160px (140px width + 20px gap)
+            const totalWidth = data.length * 160; 
+            // 速度控制: 50px/s
+            const duration = Math.max(totalWidth / 50, 10); 
+            track.style.animationDuration = `${duration}s`;
+
+        } catch (e) { console.error("指数更新失败", e); }
     }
 
-    updateWeather();
-    setInterval(updateWeather, 1800000); // 每30分钟更新一次
+    // 获取自选股列表
+    async function loadWatchlist() {
+        try {
+            const res = await fetch(`${API_BASE}/finance/watchlist`);
+            watchlist = await res.json();
+            if (watchlist.length > 0) {
+                loadNextStock();
+                setInterval(loadNextStock, 15000); // 每15秒切换一只股票
+            } else {
+                document.getElementById('stock-name').textContent = "无自选股";
+            }
+        } catch (e) { console.error("自选股列表失败", e); }
+    }
 
-    // --- 原有功能：加载YouTube频道 ---
+    // 加载下一只股票并绘图
+    async function loadNextStock() {
+        if (watchlist.length === 0) return;
+        
+        const stock = watchlist[currentStockIndex];
+        currentStockIndex = (currentStockIndex + 1) % watchlist.length;
+        
+        try {
+            const res = await fetch(`${API_BASE}/finance/stock/${stock.symbol}?name=${encodeURIComponent(stock.name)}`);
+            const data = await res.json();
+            
+            // 更新文字
+            const isUp = data.change >= 0;
+            const color = isUp ? '#e74c3c' : '#2ecc71';
+            const sign = isUp ? '+' : '';
+            
+            document.getElementById('stock-name').textContent = data.name;
+            document.getElementById('stock-price').textContent = data.price.toFixed(2);
+            document.getElementById('stock-price').style.color = color;
+            document.getElementById('stock-change').textContent = `${sign}${data.change.toFixed(2)} (${sign}${data.change_percent.toFixed(2)}%)`;
+            document.getElementById('stock-change').style.color = color;
+            
+            // 绘制图表
+            renderChart(data.history, color);
+            
+        } catch (e) { console.error(`个股 ${stock.name} 加载失败`, e); }
+    }
+
+    function renderChart(dataPoints, lineColor) {
+        const ctx = document.getElementById('stockChart').getContext('2d');
+        
+        if (stockChart) {
+            stockChart.destroy();
+        }
+        
+        // 创建渐变
+        const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+        gradient.addColorStop(0, lineColor.replace(')', ', 0.5)').replace('rgb', 'rgba'));
+        gradient.addColorStop(1, 'rgba(0,0,0,0)');
+
+        stockChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: new Array(dataPoints.length).fill(''),
+                datasets: [{
+                    data: dataPoints,
+                    borderColor: lineColor,
+                    backgroundColor: gradient,
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { display: false },
+                    y: { 
+                        display: true,
+                        position: 'right',
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: { color: '#666', font: {size: 10} }
+                    }
+                },
+                animation: { duration: 1000 }
+            }
+        });
+    }
+
+    // 初始化
+    updateIndices();
+    setInterval(updateIndices, 60000); // 指数每分钟更新
+    loadWatchlist();
+
+    // ==================== 4. 原有逻辑 (YouTube + Photos) ====================
+    let currentChannel = '{{ default_channel|default("NASA TV") }}';
+    let photos = [];
+    let currentPhotoIndex = 0;
+    let slideshowInterval = null;
+    const slideshowDelay = ({{ slideshow_interval_seconds|default(10) }}) * 1000;
+    const showMetadata = {{ 'true' if show_metadata else 'false' }};
+
     async function loadYouTubeChannel(channelName) {
         try {
-            console.log('正在加载YouTube频道:', channelName);
-            const encodedChannelName = encodeURIComponent(channelName);
-            const response = await fetch(`${API_BASE}/youtube/embed/${encodedChannelName}`);
-            
-            if (!response.ok) {
-                throw new Error(`HTTP错误: ${response.status} ${response.statusText}`);
-            }
-            
-            const data = await response.json();
-            console.log('获取到embed URL:', data.embed_url);
-            
-            if (!data.embed_url) {
-                throw new Error('未获取到embed URL');
-            }
-            
+            const encoded = encodeURIComponent(channelName);
+            const res = await fetch(`${API_BASE}/youtube/embed/${encoded}`);
+            const data = await res.json();
             const iframe = document.getElementById('youtube-iframe');
-            const loading = document.getElementById('youtube-loading');
-            
-            if (iframe) {
-                // 对于直播视频，简化URL参数
-                let embedUrl = data.embed_url;
-                
-                // 处理URL参数
-                const urlObj = new URL(embedUrl);
-                
-                // 如果是频道直播流，添加基本参数
-                if (urlObj.pathname.includes('live_stream')) {
-                    urlObj.searchParams.set('autoplay', '1');
-                    urlObj.searchParams.set('mute', '0');
-                } else {
-                    // 普通视频，添加基本参数
-                    urlObj.searchParams.set('autoplay', '1');
-                    urlObj.searchParams.set('mute', '0');
-                    // 移除可能引起问题的参数
-                    urlObj.searchParams.delete('enablejsapi');
-                    urlObj.searchParams.delete('rel');
-                    urlObj.searchParams.delete('modestbranding');
-                }
-                
-                embedUrl = urlObj.toString();
-                
-                console.log('设置YouTube iframe URL:', embedUrl);
-                iframe.src = embedUrl;
+            if (iframe && data.embed_url) {
+                const urlObj = new URL(data.embed_url);
+                urlObj.searchParams.set('autoplay', '1');
+                urlObj.searchParams.set('mute', '0');
+                urlObj.searchParams.delete('enablejsapi');
+                iframe.src = urlObj.toString();
                 iframe.style.display = 'block';
-                if (loading) {
-                    loading.style.display = 'none';
-                }
-                console.log('YouTube iframe已设置');
-            } else {
-                console.error('未找到youtube-iframe元素');
-                if (loading) {
-                    loading.innerHTML = '<div style="color: #ff4444;">未找到视频播放器元素</div>';
-                }
+                document.getElementById('youtube-loading').style.display = 'none';
             }
-        } catch (error) {
-            console.error('加载YouTube频道失败:', error);
-            const container = document.querySelector('.youtube-container');
-            if (container) {
-                container.innerHTML = `
-                    <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #fff; flex-direction: column; gap: 10px;">
-                        <div style="font-size: 18px;">加载YouTube直播失败</div>
-                        <div style="font-size: 14px; color: #999;">${error.message}</div>
-                        <button onclick="location.reload()" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer;">重试</button>
-                    </div>
-                `;
-            }
-        }
+        } catch(e) {}
     }
-    
-    // 加载照片列表
+
     async function loadPhotos() {
         try {
-            // 使用新的相册 API
-            const response = await fetch(`${API_BASE}/albums/slideshow`);
-            photos = await response.json();
-            
-            if (photos.length > 0) {
-                displayPhoto(0);
-                startSlideshow();
-            } else {
-                document.getElementById('photo-container').innerHTML = 
-                    '<div class="error" style="text-align: center; padding: 20px;">暂无照片<br>请在“设置”中创建相册并上传照片</div>';
-            }
-        } catch (error) {
-            console.error('加载照片失败:', error);
-            document.getElementById('photo-container').innerHTML = 
-                '<div class="error">加载照片失败</div>';
-        }
+            const res = await fetch(`${API_BASE}/albums/slideshow`);
+            photos = await res.json();
+            if (photos.length > 0) { displayPhoto(0); startSlideshow(); }
+            else { document.getElementById('photo-container').innerHTML = '<div class="error">暂无照片<br>请在“设置”中创建相册并上传照片</div>'; }
+        } catch(e) {}
     }
-    
-    // 显示照片
+
     function displayPhoto(index) {
         if (photos.length === 0) return;
-        
         currentPhotoIndex = index;
         const photo = photos[index];
         const container = document.getElementById('photo-container');
-        
-        // 新 API 直接返回 url
         const photoUrl = photo.url;
         
         let metadataHtml = '';
         if (showMetadata) {
-            // 格式化时间
-            let timeStr = '';
-            if (photo.created_at) {
-                try {
-                    timeStr = new Date(photo.created_at).toLocaleString('zh-CN');
-                } catch(e) {}
-            }
-            
-            const albumName = photo.album_name || '';
-            
-            metadataHtml = `
+             let timeStr = '';
+             if (photo.created_at) {
+                 try { timeStr = new Date(photo.created_at).toLocaleString('zh-CN'); } catch(e) {}
+             }
+             metadataHtml = `
                 <div class="photo-metadata">
-                    <div>相册: ${albumName}</div>
+                    <div>相册: ${photo.album_name || ''}</div>
                     <div>时间: ${timeStr}</div>
                     <div>${index + 1} / ${photos.length}</div>
-                </div>
-            `;
+                </div>`;
         }
-        
         container.innerHTML = `
             <button class="photo-nav prev" onclick="prevPhoto()">‹</button>
-            <img src="${photoUrl}" alt="${photo.filename}" class="photo-image" id="photo-image" loading="eager">
+            <img src="${photoUrl}" class="photo-image" style="object-fit:contain;width:100%;height:100%;max-height:100%;" loading="eager">
             <button class="photo-nav next" onclick="nextPhoto()">›</button>
-            ${metadataHtml}
-        `;
+            ${metadataHtml}`;
     }
     
-    // 上一张照片
     function prevPhoto() {
         if (photos.length === 0) return;
         currentPhotoIndex = (currentPhotoIndex - 1 + photos.length) % photos.length;
@@ -476,7 +563,6 @@
         resetSlideshow();
     }
     
-    // 下一张照片
     function nextPhoto() {
         if (photos.length === 0) return;
         currentPhotoIndex = (currentPhotoIndex + 1) % photos.length;
@@ -484,56 +570,29 @@
         resetSlideshow();
     }
     
-    // 开始轮播
     function startSlideshow() {
-        if (slideshowInterval) {
-            clearInterval(slideshowInterval);
-        }
+        if (slideshowInterval) clearInterval(slideshowInterval);
         slideshowInterval = setInterval(() => {
-            nextPhoto();
+             nextPhoto();
         }, slideshowDelay);
     }
     
-    // 重置轮播
     function resetSlideshow() {
-        if (slideshowInterval) {
-            clearInterval(slideshowInterval);
-        }
+        if (slideshowInterval) clearInterval(slideshowInterval);
         startSlideshow();
     }
-    
+
     // 键盘控制
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'ArrowLeft') {
-            prevPhoto();
-        } else if (e.key === 'ArrowRight') {
-            nextPhoto();
-        } else if (e.key === 'Escape') {
-            if (document.fullscreenElement) {
-                document.exitFullscreen();
-            }
+        if (e.key === 'ArrowLeft') { prevPhoto(); }
+        else if (e.key === 'ArrowRight') { nextPhoto(); }
+        else if (e.key === 'Escape') {
+            if (document.fullscreenElement) document.exitFullscreen();
         }
     });
-    
-    // 初始化
+
     window.addEventListener('DOMContentLoaded', () => {
-        console.log('页面加载完成，默认频道:', currentChannel);
-        if (currentChannel) {
-            loadYouTubeChannel(currentChannel);
-        } else {
-            console.warn('未设置默认频道，尝试加载第一个可用频道');
-            // 尝试获取频道列表并加载第一个
-            fetch(`${API_BASE}/youtube/channels`)
-                .then(res => res.json())
-                .then(data => {
-                    if (data.channels && data.channels.length > 0) {
-                        const firstChannel = data.channels[0].name;
-                        console.log('加载第一个可用频道:', firstChannel);
-                        loadYouTubeChannel(firstChannel);
-                    }
-                })
-                .catch(err => console.error('获取频道列表失败:', err));
-        }
+        if (currentChannel) loadYouTubeChannel(currentChannel);
         loadPhotos();
     });
 </script>
