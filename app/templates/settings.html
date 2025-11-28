@@ -446,6 +446,29 @@
             </div>
             
             <div class="section">
+                <h2>节能模式设置</h2>
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 10px;">
+                        <div class="switch">
+                            <input type="checkbox" id="energyEnabled">
+                            <span class="slider"></span>
+                        </div>
+                        <span>启用夜间休眠模式 (黑屏时钟，停止直播和数据更新)</span>
+                    </label>
+                </div>
+                <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div>
+                        <label>休眠开始时间</label>
+                        <input type="time" id="energyStartTime">
+                    </div>
+                    <div>
+                        <label>休眠结束时间</label>
+                        <input type="time" id="energyEndTime">
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
                 <h2>金融数据设置</h2>
                 <div class="form-group">
                     <label>指数列表 (Symbol, Name)</label>
@@ -811,6 +834,11 @@
                 document.getElementById('financeTickerSpeed').value = data.finance_ticker_speed_seconds || 30;
                 document.getElementById('financeStockSwitchInterval').value = data.finance_stock_switch_interval_seconds || 10;
 
+                // Energy
+                document.getElementById('energyEnabled').checked = data.energy_enabled !== false;
+                document.getElementById('energyStartTime').value = data.energy_start_time || '22:30';
+                document.getElementById('energyEndTime').value = data.energy_end_time || '05:30';
+
             } catch (error) {
                 console.error('加载设置失败:', error);
             }
@@ -840,7 +868,10 @@
                 finance_indices: parseFinanceConfig(document.getElementById('financeIndices').value),
                 finance_stocks: parseFinanceConfig(document.getElementById('financeStocks').value),
                 finance_ticker_speed_seconds: parseInt(document.getElementById('financeTickerSpeed').value),
-                finance_stock_switch_interval_seconds: parseInt(document.getElementById('financeStockSwitchInterval').value)
+                finance_stock_switch_interval_seconds: parseInt(document.getElementById('financeStockSwitchInterval').value),
+                energy_enabled: document.getElementById('energyEnabled').checked,
+                energy_start_time: document.getElementById('energyStartTime').value,
+                energy_end_time: document.getElementById('energyEndTime').value
             };
             
             try {
