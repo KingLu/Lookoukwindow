@@ -137,6 +137,21 @@ pip install yfinance --extra-index-url https://www.piwheels.org/simple
 
 或者，如果您已经通过 `apt` 安装了系统级的 `python3-pandas`，可以修改虚拟环境下的 `pyvenv.cfg` 文件，设置 `include-system-site-packages = true` 来直接复用系统包，从而跳过安装。
 
+### Q: 启动时报错 `ImportError: libopenblas.so.0: cannot open shared object file`？
+
+**A:** 这是因为 `numpy` 依赖的系统数学库未安装。请在树莓派终端执行以下命令安装：
+
+```bash
+sudo apt-get update
+sudo apt-get install -y libopenblas0
+```
+
+如果仍然报错，可以尝试安装 Atlas 库：
+
+```bash
+sudo apt-get install -y libatlas-base-dev
+```
+
 ## 许可证
 
 GPL-3.0
