@@ -736,6 +736,7 @@
     let slideshowInterval = null;
     const slideshowDelay = ({{ slideshow_interval_seconds|default(10) }}) * 1000;
     const showMetadata = {{ 'true' if show_metadata else 'false' }};
+    const slideshowTransition = '{{ slideshow_transition|default("fade") }}';
 
     async function loadYouTubeChannel(channelName) {
         try {
@@ -759,36 +760,142 @@
         try {
             const res = await fetch(`${API_BASE}/albums/slideshow`);
             photos = await res.json();
-            if (photos.length > 0) { displayPhoto(0); startSlideshow(); }
-            else { document.getElementById('photo-container').innerHTML = '<div class="error">暂无照片<br>请在“设置”中创建相册并上传照片</div>'; }
-        } catch(e) {}
+            
+            const container = document.getElementById('photo-container');
+            if (photos.length > 0) { 
+                // 初始化容器结构
+                container.innerHTML = `
+                    <div id="photo-stage" style="width:100%;height:100%;position:relative;" class="transition-${slideshowTransition}"></div>
+                    <button class="photo-nav prev" onclick="prevPhoto()">‹</button>
+                    <button class="photo-nav next" onclick="nextPhoto()">›</button>
+                    <div id="photo-metadata-container" class="photo-metadata ${showMetadata ? '' : 'hidden'}"></div>
+                `;
+                
+                displayPhoto(0); 
+                startSlideshow(); 
+            }
+            else { 
+                container.innerHTML = '<div class="error">暂无照片<br>请在“设置”中创建相册并上传照片</div>'; 
+            }
+        } catch(e) { console.error("加载照片失败", e); }
     }
 
     function displayPhoto(index) {
         if (photos.length === 0) return;
         currentPhotoIndex = index;
         const photo = photos[index];
-        const container = document.getElementById('photo-container');
-        const photoUrl = photo.url;
+        const stage = document.getElementById('photo-stage');
+        if (!stage) return; // Safety check
         
-        let metadataHtml = '';
-        if (showMetadata) {
-             let timeStr = '';
-             if (photo.created_at) {
-                 try { timeStr = new Date(photo.created_at).toLocaleString('zh-CN'); } catch(e) {}
-             }
-             metadataHtml = `
-                <div class="photo-metadata">
-                    <div>相册: ${photo.album_name || ''}</div>
-                    <div>时间: ${timeStr}</div>
-                    <div>${index + 1} / ${photos.length}</div>
-                </div>`;
+        // 创建新的 wrapper
+        const wrapper = document.createElement('div');
+        wrapper.className = 'photo-wrapper enter'; // 初始状态
+        
+        let contentHtml = '';
+        // 检查是否为视频
+        if (photo.type === 'video' || (photo.filename && photo.filename.match(/\.(mp4|mov)$/i))) {
+             contentHtml = `<video src="${photo.url}" class="photo-video" autoplay muted loop playsinline style="max-width:100%;max-height:100%;"></video>`;
+        } else {
+             contentHtml = `<img src="${photo.url}" class="photo-image" loading="eager">`;
         }
-        container.innerHTML = `
-            <button class="photo-nav prev" onclick="prevPhoto()">‹</button>
-            <img src="${photoUrl}" class="photo-image" style="object-fit:contain;width:100%;height:100%;max-height:100%;" loading="eager">
-            <button class="photo-nav next" onclick="nextPhoto()">›</button>
-            ${metadataHtml}`;
+        wrapper.innerHTML = contentHtml;
+        
+        stage.appendChild(wrapper);
+        
+        // 强制重绘以触发 transition
+        wrapper.offsetHeight; 
+        
+        // 处理旧的 active 元素
+        const oldActive = stage.querySelector('.photo-wrapper.active');
+        if (oldActive) {
+            oldActive.classList.remove('active');
+            oldActive.classList.add('exit');
+            // 动画结束后移除
+            setTimeout(() => {
+                if(oldActive.parentNode === stage) stage.removeChild(oldActive);
+            }, 1000); // 匹配 CSS duration
+        }
+        
+        // 激活新元素
+        wrapper.classList.remove('enter');
+        wrapper.classList.add('active');
+        
+        // 更新元数据
+        updateMetadata(photo, index);
+    }
+    
+    function updateMetadata(photo, index) {
+        const metaContainer = document.getElementById('photo-metadata-container');
+        if (!metaContainer) return;
+        
+        if (!showMetadata) {
+            metaContainer.classList.add('hidden');
+            return;
+        }
+        
+        let primaryText = '';
+        let secondaryHtml = '';
+        
+        // 1. 主标题逻辑：优先显示 相册名称，如果没有相册名则尝试用位置名，最后是 "未命名相册"
+        // 用户需求：美化布局，不要突兀。
+        // 现在的设计：
+        // 主行 (大字): 相册名称 (如 "如意平安的家庭相册")
+        // 副行 (小字): 时间 | 设备 | 地点
+        
+        primaryText = photo.album_name || '未命名相册';
+        
+        // 2. 副信息逻辑
+        
+        // 时间
+        let timeStr = '';
+        if (photo.date_taken) {
+            // 格式化: 2025-11-15 12:45
+            try {
+                const d = new Date(photo.date_taken.replace(' ', 'T'));
+                const datePart = d.toLocaleDateString('zh-CN', {year: 'numeric', month: '2-digit', day: '2-digit'}).replace(/\//g, '-');
+                const timePart = d.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit', hour12: false});
+                timeStr = `${datePart} ${timePart}`;
+            } catch(e) { timeStr = photo.date_taken; }
+        } else if (photo.created_at) {
+            try { 
+                 const d = new Date(photo.created_at);
+                 timeStr = d.toLocaleDateString('zh-CN').replace(/\//g, '-');
+            } catch(e) {}
+        }
+        if (timeStr) {
+             secondaryHtml += `<div class="meta-item"><span class="meta-icon">📅</span> ${timeStr}</div>`;
+        }
+        
+        // 设备
+        if (photo.model) {
+            const make = photo.make ? photo.make.replace(/\0/g, '') : '';
+            const model = photo.model.replace(/\0/g, '');
+            let device = model;
+            // 简单去重逻辑
+            if (make && !model.toLowerCase().includes(make.toLowerCase())) {
+                device = `${make} ${model}`;
+            }
+            secondaryHtml += `<div class="meta-item"><span class="meta-icon">📷</span> ${device}</div>`;
+        }
+        
+        // 地点 (优先显示解析后的 location_name，如果没有但有坐标显示 "包含地理位置")
+        if (photo.location_name) {
+             secondaryHtml += `<div class="meta-item"><span class="meta-icon">📍</span> ${photo.location_name}</div>`;
+        } else if (photo.has_location) {
+             secondaryHtml += `<div class="meta-item"><span class="meta-icon">📍</span> ${photo.location && photo.location.lat ? '未知地点' : '包含位置信息'}</div>`;
+        }
+
+        const html = `
+            <div class="meta-primary">
+                <span class="meta-icon">📁</span> ${primaryText}
+            </div>
+            <div class="meta-secondary">
+                ${secondaryHtml}
+            </div>
+            <div class="meta-counter">${index + 1} / ${photos.length}</div>
+        `;
+        
+        metaContainer.innerHTML = html;
     }
     
     function prevPhoto() {

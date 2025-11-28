@@ -132,18 +132,125 @@
             max-height: 100%;
             object-fit: contain;
         }
+
+        .photo-wrapper {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+            z-index: 0;
+            pointer-events: none; /* Allow clicks to pass through to nav buttons if needed, but nav buttons are absolute z-index 100 */
+        }
+
+        .photo-wrapper.active {
+            opacity: 1;
+            z-index: 1;
+            pointer-events: auto;
+        }
+
+        .photo-video {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        
+        /* Transition Effects */
+        /* Slide Left */
+        .transition-slide-left .photo-wrapper { transition: transform 0.8s ease-in-out, opacity 0.8s; }
+        .transition-slide-left .photo-wrapper.enter { transform: translateX(100%); opacity: 0; }
+        .transition-slide-left .photo-wrapper.active { transform: translateX(0); opacity: 1; }
+        .transition-slide-left .photo-wrapper.exit { transform: translateX(-100%); opacity: 0; }
+
+        /* Slide Right */
+        .transition-slide-right .photo-wrapper { transition: transform 0.8s ease-in-out, opacity 0.8s; }
+        .transition-slide-right .photo-wrapper.enter { transform: translateX(-100%); opacity: 0; }
+        .transition-slide-right .photo-wrapper.active { transform: translateX(0); opacity: 1; }
+        .transition-slide-right .photo-wrapper.exit { transform: translateX(100%); opacity: 0; }
+
+        /* Slide Up */
+        .transition-slide-up .photo-wrapper { transition: transform 0.8s ease-in-out, opacity 0.8s; }
+        .transition-slide-up .photo-wrapper.enter { transform: translateY(100%); opacity: 0; }
+        .transition-slide-up .photo-wrapper.active { transform: translateY(0); opacity: 1; }
+        .transition-slide-up .photo-wrapper.exit { transform: translateY(-100%); opacity: 0; }
+
+        /* Slide Down */
+        .transition-slide-down .photo-wrapper { transition: transform 0.8s ease-in-out, opacity 0.8s; }
+        .transition-slide-down .photo-wrapper.enter { transform: translateY(-100%); opacity: 0; }
+        .transition-slide-down .photo-wrapper.active { transform: translateY(0); opacity: 1; }
+        .transition-slide-down .photo-wrapper.exit { transform: translateY(100%); opacity: 0; }
+
+        /* Zoom In */
+        .transition-zoom-in .photo-wrapper { transition: transform 1s ease, opacity 1s; }
+        .transition-zoom-in .photo-wrapper.enter { transform: scale(0.8); opacity: 0; }
+        .transition-zoom-in .photo-wrapper.active { transform: scale(1); opacity: 1; }
+        .transition-zoom-in .photo-wrapper.exit { transform: scale(1.2); opacity: 0; }
+
+        /* Zoom Out */
+        .transition-zoom-out .photo-wrapper { transition: transform 1s ease, opacity 1s; }
+        .transition-zoom-out .photo-wrapper.enter { transform: scale(1.2); opacity: 0; }
+        .transition-zoom-out .photo-wrapper.active { transform: scale(1); opacity: 1; }
+        .transition-zoom-out .photo-wrapper.exit { transform: scale(0.8); opacity: 0; }
         
         .photo-metadata {
             position: absolute;
-            bottom: 20px;
-            left: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 15px;
-            border-radius: 8px;
-            font-size: 14px;
+            bottom: 30px;
+            left: 30px;
+            /* 移除背景色和边框，改为文字阴影 */
+            background: transparent;
+            padding: 0;
+            border-radius: 0;
+            color: #fff;
+            z-index: 10;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            pointer-events: none; /* 不阻挡点击 */
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            opacity: 0.9;
+            max-width: 80%;
+        }
+
+        .photo-metadata .meta-primary {
+            font-size: 1.4rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         
+        .photo-metadata .meta-secondary {
+            font-size: 0.95rem;
+            font-weight: 400;
+            opacity: 0.9;
+            display: flex;
+            align-items: center;
+            gap: 15px; /* 增加间距 */
+            margin-top: 4px;
+        }
+        
+        .photo-metadata .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .photo-metadata .meta-icon {
+            font-size: 1.1em;
+            opacity: 0.8;
+        }
+        
+        /* 隐藏计数器 */
+        .photo-metadata .meta-counter {
+            display: none; 
+        }
+
         .photo-metadata.hidden {
             display: none;
         }
