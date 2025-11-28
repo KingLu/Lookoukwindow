@@ -20,6 +20,8 @@ class SettingsUpdateRequest(BaseModel):
     weather_longitude: Optional[float] = None
     finance_indices: Optional[List[Dict[str, str]]] = None
     finance_stocks: Optional[List[Dict[str, str]]] = None
+    finance_ticker_speed_seconds: Optional[int] = None
+    finance_stock_switch_interval_seconds: Optional[int] = None
 
 
 def get_config() -> Config:
@@ -41,7 +43,9 @@ async def get_settings(config: Config = Depends(get_config)):
         "weather_latitude": config.get('weather.latitude', 39.73),
         "weather_longitude": config.get('weather.longitude', 116.33),
         "finance_indices": config.get('finance.indices', []),
-        "finance_stocks": config.get('finance.stocks', [])
+        "finance_stocks": config.get('finance.stocks', []),
+        "finance_ticker_speed_seconds": config.get('finance.ticker_speed_seconds', 30),
+        "finance_stock_switch_interval_seconds": config.get('finance.stock_switch_interval_seconds', 10)
     }
 
 
@@ -74,6 +78,10 @@ async def update_settings(
         config.set('finance.indices', settings.finance_indices)
     if settings.finance_stocks is not None:
         config.set('finance.stocks', settings.finance_stocks)
+    if settings.finance_ticker_speed_seconds is not None:
+        config.set('finance.ticker_speed_seconds', settings.finance_ticker_speed_seconds)
+    if settings.finance_stock_switch_interval_seconds is not None:
+        config.set('finance.stock_switch_interval_seconds', settings.finance_stock_switch_interval_seconds)
     
     config.save()
     return {"status": "success", "message": "设置更新成功"}

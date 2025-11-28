@@ -97,7 +97,9 @@ class Config:
                     {'symbol': '1810.HK', 'name': '小米集团'},
                     {'symbol': '0981.HK', 'name': '中芯国际'}
                 ],
-                'update_interval_seconds': 60
+                'update_interval_seconds': 60,
+                'ticker_speed_seconds': 30,  # 指数轮播速度 (CSS duration)
+                'stock_switch_interval_seconds': 10  # 个股切换间隔
             },
             'display': {
                 'kiosk': True,

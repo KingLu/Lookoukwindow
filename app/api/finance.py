@@ -22,13 +22,18 @@ class IndexData(BaseModel):
     change: float
     change_percent: float
 
+class StockPoint(BaseModel):
+    t: str
+    v: float
+
 class StockData(BaseModel):
     symbol: str
     name: str
     price: float
     change: float
     change_percent: float
-    history: List[float]  # 简化的历史数据用于绘图
+    history_1d: List[StockPoint]
+    history_1y: List[StockPoint]
     currency: str
 
 @router.get("/indices", response_model=List[IndexData])
@@ -99,7 +104,7 @@ async def get_indices(config: Config = Depends(get_config)):
 
 @router.get("/stock/{symbol}", response_model=StockData)
 async def get_stock(symbol: str, name: str = "", config: Config = Depends(get_config)):
-    """获取单个股票详情及历史趋势"""
+    """获取单个股票详情及历史趋势 (当日+1年)"""
     try:
         ticker = yf.Ticker(symbol)
         
@@ -115,30 +120,68 @@ async def get_stock(symbol: str, name: str = "", config: Config = Depends(get_co
             change = price - prev_close
             change_percent = (change / prev_close) * 100 if prev_close != 0 else 0.0
             
-        # 获取历史数据用于绘图
-        # 优先尝试获取今天的分钟级数据
+        # --- 获取当日分时数据 (1d, 5m) ---
+        history_1d_points = []
         try:
-            hist = ticker.history(period="1d", interval="5m")
-            if hist.empty:
-                # 如果今天没数据（比如周末或盘前），获取最近5天的小时级数据
-                hist = ticker.history(period="5d", interval="60m")
-        except Exception:
-             hist = ticker.history(period="5d", interval="1d")
-            
-        history_prices = []
-        if not hist.empty:
-            # 提取收盘价序列，处理 NaN
-            history_prices = [x for x in hist['Close'].tolist() if x == x] # remove NaN
-            
-            # 简化数据点，避免前端渲染压力过大
-            target_points = 50
-            if len(history_prices) > target_points:
-                step = len(history_prices) // target_points
-                history_prices = history_prices[::step]
-        
-        # 如果还是没有数据，填充当前价格
-        if not history_prices and price:
-             history_prices = [price] * 10
+            # interval='5m' 比较适合日内趋势
+            hist_1d = ticker.history(period="1d", interval="5m")
+            if not hist_1d.empty:
+                # 格式化: t=HH:MM, v=Close
+                # index 是 datetime
+                for idx, row in hist_1d.iterrows():
+                    # 使用 strftime 格式化时间
+                    t_str = idx.strftime("%H:%M")
+                    val = row['Close']
+                    if val == val: # not NaN
+                        history_1d_points.append(StockPoint(t=t_str, v=round(val, 2)))
+        except Exception as e:
+            logger.warning(f"Failed to fetch 1d history for {symbol}: {e}")
+
+        # 如果当日没数据(比如盘前)，尝试拿最近一次交易日的数据
+        if not history_1d_points:
+            try:
+                 hist_5d = ticker.history(period="5d", interval="15m")
+                 if not hist_5d.empty:
+                    # 取最后一天的数据
+                    last_date = hist_5d.index[-1].date()
+                    last_day_data = hist_5d[hist_5d.index.date == last_date]
+                    for idx, row in last_day_data.iterrows():
+                        t_str = idx.strftime("%H:%M")
+                        val = row['Close']
+                        if val == val:
+                             history_1d_points.append(StockPoint(t=t_str, v=round(val, 2)))
+            except Exception:
+                pass
+
+
+        # --- 获取1年日线数据 (1y, 1d) ---
+        history_1y_points = []
+        try:
+            hist_1y = ticker.history(period="1y", interval="1d")
+            if not hist_1y.empty:
+                 # 降采样，避免点太多
+                 # 一年约250个交易日，取50个点左右
+                 data_list = hist_1y['Close'].dropna().tolist()
+                 idx_list = hist_1y.index[hist_1y['Close'].notna()].tolist()
+                 
+                 total_len = len(data_list)
+                 step = max(1, total_len // 50)
+                 
+                 for i in range(0, total_len, step):
+                     val = data_list[i]
+                     dt = idx_list[i]
+                     t_str = dt.strftime("%Y-%m") # 显示年月即可，或者 %m-%d
+                     history_1y_points.append(StockPoint(t=t_str, v=round(val, 2)))
+                     
+                 # 确保包含最后一个点(最新价)
+                 if total_len > 0 and (total_len - 1) % step != 0:
+                     val = data_list[-1]
+                     dt = idx_list[-1]
+                     t_str = dt.strftime("%Y-%m")
+                     history_1y_points.append(StockPoint(t=t_str, v=round(val, 2)))
+
+        except Exception as e:
+            logger.warning(f"Failed to fetch 1y history for {symbol}: {e}")
 
         return {
             "symbol": symbol,
@@ -146,7 +189,8 @@ async def get_stock(symbol: str, name: str = "", config: Config = Depends(get_co
             "price": round(price or 0.0, 2),
             "change": round(change, 2),
             "change_percent": round(change_percent, 2),
-            "history": [round(p, 2) for p in history_prices],
+            "history_1d": history_1d_points,
+            "history_1y": history_1y_points,
             "currency": currency
         }
     except Exception as e:

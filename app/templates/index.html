@@ -8,18 +8,26 @@
     <!-- 上部：综合生活信息栏 (紧凑) -->
     <div class="dashboard-top">
         <div class="info-left">
-            <div class="time-display-compact" id="time-display" onclick="toggleTimeFormat()">00:00</div>
-            <div class="date-compact">
-                <div id="date-solar">2025/01/01 周一</div>
-                <div id="date-lunar-ganzhi" style="font-size: 0.9em; color: #aaa;">腊月初八 乙巳年</div>
+            <div class="date-time-group">
+                <div class="date-compact">
+                    <span id="date-solar">2025/01/01 周一</span>
+                    <span id="date-lunar-ganzhi" style="font-size: 0.85em; color: #aaa; margin-left: 10px;">腊月初八 乙巳年</span>
+                </div>
+                <div class="time-display-compact" id="time-display" onclick="toggleTimeFormat()">00:00:00</div>
             </div>
         </div>
         <div class="info-right">
-            <div class="weather-compact">
-                <div id="weather-icon" style="font-size: 2rem;">🌤️</div>
-                <div class="weather-text">
-                    <div id="weather-temp" style="font-weight: bold;">--°C</div>
-                    <div id="weather-location" style="font-size: 0.8rem; color: #aaa;">{{ weather_config.get('location_name', '北京市') }}</div>
+            <div class="weather-container">
+                <div class="weather-current">
+                    <div id="weather-icon" style="font-size: 2.5rem;">🌤️</div>
+                    <div class="weather-text">
+                        <div id="weather-temp" style="font-weight: bold; font-size: 1.5rem;">--°C</div>
+                        <div id="weather-location" style="font-size: 0.8rem; color: #aaa;">{{ weather_config.get('location_name', '北京市') }}</div>
+                    </div>
+                </div>
+                <!-- 未来3小时预报 -->
+                <div class="weather-forecast" id="weather-forecast">
+                    <!-- 动态生成 -->
                 </div>
             </div>
         </div>
@@ -60,8 +68,16 @@
                 </div>
                 <div class="stock-change" id="stock-change">--</div>
             </div>
-            <div class="stock-chart-container">
-                <canvas id="stockChart"></canvas>
+            <!-- 双图表容器 -->
+            <div class="stock-charts-wrapper">
+                <div class="chart-box">
+                    <div class="chart-label">分时</div>
+                    <canvas id="stockChart1d"></canvas>
+                </div>
+                <div class="chart-box">
+                    <div class="chart-label">日K(1年)</div>
+                    <canvas id="stockChart1y"></canvas>
+                </div>
             </div>
         </div>
     </div>
@@ -100,21 +116,27 @@
     .info-left {
         display: flex;
         align-items: center;
-        gap: 20px;
+    }
+
+    .date-time-group {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .date-compact {
+        font-size: 1.1rem;
+        margin-bottom: 2px;
+        color: #ddd;
     }
 
     .time-display-compact {
-        font-size: 3.5rem;
+        font-size: 3.2rem;
         font-weight: 700;
         font-family: "Segoe UI", Roboto, monospace;
         line-height: 1;
         cursor: pointer;
-    }
-
-    .date-compact {
-        display: flex;
-        flex-direction: column;
-        font-size: 1.1rem;
+        letter-spacing: 1px;
     }
 
     .info-right {
@@ -122,12 +144,36 @@
         align-items: center;
     }
 
-    .weather-compact {
+    .weather-container {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+    }
+
+    .weather-current {
         display: flex;
         align-items: center;
         gap: 10px;
         text-align: right;
     }
+
+    .weather-forecast {
+        display: flex;
+        gap: 15px;
+        border-left: 1px solid rgba(255,255,255,0.2);
+        padding-left: 20px;
+    }
+
+    .forecast-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+        color: #ccc;
+    }
+    .forecast-time { font-size: 0.7rem; margin-bottom: 2px; }
+    .forecast-icon { font-size: 1.2rem; margin-bottom: 2px; }
 
     /* Mid Video */
     .youtube-container {
@@ -155,10 +201,10 @@
         min-height: 250px;
         background: linear-gradient(to top, rgba(30,30,30,0.95), rgba(10,10,10,0.9));
         border-top: 1px solid rgba(255,255,255,0.1);
-        padding: 15px 0; /* 移除左右 padding 以便跑马灯贴边 */
+        padding: 15px 0; 
         display: flex;
         flex-direction: column;
-        gap: 15px;
+        gap: 10px;
         overflow: hidden;
     }
 
@@ -167,16 +213,16 @@
         width: 100%;
         overflow: hidden;
         position: relative;
-        padding: 0 20px; /* 恢复视觉上的 padding */
+        padding: 0 20px;
         mask-image: linear-gradient(to right, transparent, black 2%, black 98%, transparent);
         -webkit-mask-image: linear-gradient(to right, transparent, black 2%, black 98%, transparent);
+        margin-bottom: 5px;
     }
 
     .indices-track {
         display: flex;
         gap: 20px;
         width: max-content;
-        /* animation 将在 JS 中根据宽度动态设置，避免过快或过慢 */
         animation: marquee 30s linear infinite; 
     }
     
@@ -186,23 +232,23 @@
 
     @keyframes marquee {
         0% { transform: translateX(0); }
-        100% { transform: translateX(-50%); } /* 移动一半（即第一组内容的长度） */
+        100% { transform: translateX(-50%); } 
     }
 
     .index-card {
         background: rgba(255,255,255,0.08);
-        padding: 10px 15px;
+        padding: 8px 12px;
         border-radius: 6px;
-        min-width: 140px;
+        min-width: 130px;
         display: flex;
         flex-direction: column;
         justify-content: center;
-        flex-shrink: 0; /* 防止被压缩 */
+        flex-shrink: 0; 
     }
 
-    .index-name { font-size: 0.9rem; color: #aaa; margin-bottom: 4px; white-space: nowrap; }
-    .index-price { font-size: 1.2rem; font-weight: bold; }
-    .index-change { font-size: 1rem; }
+    .index-name { font-size: 0.8rem; color: #aaa; margin-bottom: 2px; white-space: nowrap; }
+    .index-price { font-size: 1.1rem; font-weight: bold; }
+    .index-change { font-size: 0.9rem; }
     
     .up { color: #e74c3c; }
     .down { color: #2ecc71; }
@@ -214,13 +260,14 @@
         gap: 20px;
         background: rgba(0,0,0,0.3);
         border-radius: 8px;
-        padding: 15px;
-        margin: 0 20px; /* 恢复左右边距 */
+        padding: 10px 20px;
+        margin: 0 20px 10px 20px; 
         align-items: center;
+        overflow: hidden;
     }
 
     .stock-info {
-        min-width: 180px;
+        min-width: 160px;
         display: flex;
         flex-direction: column;
         justify-content: center;
@@ -232,22 +279,47 @@
         margin-bottom: 5px;
     }
     
-    #stock-name { font-size: 1.4rem; color: #ddd; margin-bottom: 5px; }
-    #stock-price { font-size: 2.2rem; font-weight: bold; }
-    #stock-change { font-size: 1.3rem; }
+    #stock-name { font-size: 1.3rem; color: #ddd; margin-bottom: 2px; }
+    #stock-price { font-size: 2rem; font-weight: bold; }
+    #stock-change { font-size: 1.2rem; }
 
-    .stock-chart-container {
+    .stock-charts-wrapper {
         flex: 1;
+        display: flex;
+        gap: 15px;
         height: 100%;
+        min-width: 0; /* fix flex child overflow */
+    }
+
+    .chart-box {
+        flex: 1;
         position: relative;
+        background: rgba(255,255,255,0.03);
+        border-radius: 4px;
+        padding: 5px;
         min-width: 0;
+    }
+    
+    .chart-label {
+        position: absolute;
+        top: 5px;
+        left: 8px;
+        font-size: 10px;
+        color: #888;
+        pointer-events: none;
+        z-index: 1;
     }
 
     /* Photo Styles */
-    .photo-list { padding: 10px; }
-    .photo-item { margin-bottom: 10px; cursor: pointer; border-radius: 4px; overflow: hidden; transition: transform 0.2s; }
-    .photo-item:hover { transform: scale(1.02); }
-    .photo-item img { width: 100%; height: auto; display: block; }
+    .photo-container {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        background: #000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
     
     .photo-metadata {
         position: absolute;
@@ -258,6 +330,8 @@
         padding: 15px;
         border-radius: 8px;
         font-size: 14px;
+        z-index: 10;
+        color: #fff;
     }
     
     .photo-nav {
@@ -271,8 +345,10 @@
         padding: 20px 15px;
         cursor: pointer;
         z-index: 100;
+        transition: background 0.2s;
     }
     
+    .photo-nav:hover { background: rgba(0, 0, 0, 0.8); }
     .photo-nav.prev { left: 20px; }
     .photo-nav.next { right: 20px; }
     
@@ -305,17 +381,21 @@
     function updateTime() {
         const now = new Date();
         
-        // Time
+        // Time (HH:MM:SS)
         let hours = now.getHours();
         const minutes = String(now.getMinutes()).padStart(2, '0');
+        const seconds = String(now.getSeconds()).padStart(2, '0');
         let ampm = '';
+        
         if (!is24Hour) {
             ampm = hours >= 12 ? ' PM' : ' AM';
             hours = hours % 12;
             hours = hours ? hours : 12;
         }
         hours = String(hours).padStart(2, '0');
-        document.getElementById('time-display').textContent = `${hours}:${minutes}${ampm}`;
+        
+        // 调整字体大小自适应（可选）
+        document.getElementById('time-display').textContent = `${hours}:${minutes}:${seconds}${ampm}`;
 
         // Date
         const days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
@@ -337,24 +417,92 @@
     const weatherCodes = { 0:'☀️',1:'🌤️',2:'⛅',3:'☁️',45:'🌫️',48:'❄️',51:'🌧️',53:'🌧️',55:'🌧️',61:'🌧️',63:'🌧️',65:'🌧️',80:'🌦️',95:'⛈️' };
     async function updateWeather() {
         try {
-            const url = `https://api.open-meteo.com/v1/forecast?latitude=${weatherLat}&longitude=${weatherLon}&current=temperature_2m,weather_code&timezone=auto`;
+            // 请求当前天气 + 未来48小时数据 (足够覆盖未来6小时)
+            // 强制使用 Asia/Shanghai 时区 (北京时间)
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${weatherLat}&longitude=${weatherLon}&current=temperature_2m,weather_code&hourly=temperature_2m,weather_code&timezone=Asia%2FShanghai&forecast_days=2`;
             const res = await fetch(url);
             const data = await res.json();
+            
+            // 更新当前天气
             if (data.current) {
                 const temp = Math.round(data.current.temperature_2m);
                 const icon = weatherCodes[data.current.weather_code] || '🌈';
                 document.getElementById('weather-temp').textContent = `${temp}°C`;
                 document.getElementById('weather-icon').textContent = icon;
             }
+
+            // 更新未来 2, 4, 6 小时预报 (基准: 北京时间)
+            if (data.hourly && data.hourly.time) {
+                const now = new Date();
+                // 构造当前小时的匹配字符串 (YYYY-MM-DDTHH)，假设设备也是北京时间
+                const year = now.getFullYear();
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const day = String(now.getDate()).padStart(2, '0');
+                const hour = String(now.getHours()).padStart(2, '0');
+                const currentHourStr = `${year}-${month}-${day}T${hour}`;
+
+                // 找到当前时间在 hourly 列表中的索引
+                let currentIndex = data.hourly.time.findIndex(t => t.startsWith(currentHourStr));
+                
+                // 如果没找到(或者跨天问题)，尝试模糊匹配最近的未来时间
+                if (currentIndex === -1) {
+                    // 将 API 返回的时间字符串解析为时间戳进行比较
+                    // 注意: new Date("YYYY-MM-DDTHH:00") 在不同浏览器下对无时区字符串解析行为不同
+                    // 但既然 url 指定了 timezone，返回的是当地时间字符串。
+                    // 我们简单比对字符串大小即可 (ISO格式支持字典序比较)
+                    for(let i=0; i<data.hourly.time.length; i++) {
+                        if (data.hourly.time[i] >= currentHourStr) {
+                            currentIndex = i;
+                            break;
+                        }
+                    }
+                }
+                
+                // 如果还是没找到，默认为0
+                if (currentIndex === -1) currentIndex = 0;
+
+                const forecastContainer = document.getElementById('weather-forecast');
+                forecastContainer.innerHTML = '';
+
+                // 需求: 未来 2, 4, 6 小时
+                const offsets = [2, 4, 6];
+
+                offsets.forEach(offset => {
+                    const idx = currentIndex + offset;
+                    if (idx < data.hourly.time.length) {
+                        const timeStr = data.hourly.time[idx]; // e.g. "2025-01-01T14:00"
+                        const temp = Math.round(data.hourly.temperature_2m[idx]);
+                        const code = data.hourly.weather_code[idx];
+                        const icon = weatherCodes[code] || '❓';
+                        
+                        // 提取小时 (HH:00)
+                        const timeParts = timeStr.split('T');
+                        const timeDisplay = timeParts.length > 1 ? timeParts[1] : timeStr;
+
+                        const el = document.createElement('div');
+                        el.className = 'forecast-item';
+                        el.innerHTML = `
+                            <div class="forecast-time">${timeDisplay}</div>
+                            <div class="forecast-icon">${icon}</div>
+                            <div class="forecast-temp">${temp}°</div>
+                        `;
+                        forecastContainer.appendChild(el);
+                    }
+                });
+            }
+
         } catch (e) { console.error("天气错误", e); }
     }
     updateWeather();
-    setInterval(updateWeather, 1800000);
+    setInterval(updateWeather, 1800000); // 30分钟刷新
 
     // ==================== 3. 金融逻辑 ====================
-    let stockChart = null;
+    let chartInstances = {}; // 存储 chart 实例
     let watchlist = [];
     let currentStockIndex = 0;
+    // 从后端配置读取 (默认 30s 和 10s)
+    const tickerSpeed = {{ finance_config.get('ticker_speed_seconds', 30) }};
+    const stockSwitchInterval = {{ finance_config.get('stock_switch_interval_seconds', 10) }} * 1000;
 
     // 获取指数并创建跑马灯
     async function updateIndices() {
@@ -369,11 +517,9 @@
                 return;
             }
 
-            // 创建轨道
             const track = document.createElement('div');
             track.className = 'indices-track';
             
-            // 生成卡片 HTML
             const createCardsHtml = (items) => {
                 return items.map(idx => {
                     const isUp = idx.change >= 0;
@@ -389,35 +535,42 @@
                 }).join('');
             };
 
-            // 填充两组数据以实现无缝衔接
             track.innerHTML = createCardsHtml(data) + createCardsHtml(data);
             container.appendChild(track);
             
-            // 动态调整动画速度
-            // 假设每个卡片大概 160px (140px width + 20px gap)
-            const totalWidth = data.length * 160; 
-            // 速度控制: 50px/s
-            const duration = Math.max(totalWidth / 50, 10); 
-            track.style.animationDuration = `${duration}s`;
+            // 使用配置的固定速度 (CSS animation duration)
+            // 如果用户希望是"恒定物理速度" (px/s)，可以使用 totalWidth 计算
+            // 这里根据需求理解为 "轮播一圈的时间"，或者我们也可以结合宽度计算
+            // 既然配置项叫 ticker_speed_seconds，通常理解为动画周期或基准速度
+            
+            // 方案A: 直接使用配置作为周期 (适合内容长度固定的情况)
+            // track.style.animationDuration = `${tickerSpeed}s`;
+
+            // 方案B: 将配置视为基准（比如针对标准屏幕宽度的耗时），根据内容长度缩放
+            // 之前的逻辑: const duration = Math.max(totalWidth / 50, 10);
+            // 现在的需求: "速度...改成可配置的"
+            // 我们使用配置值作为动画周期，但为了防止内容过长导致滚动飞快，还是跟宽度挂钩比较合理?
+            // 用户说 "默认 2秒" (对于轮播来说2秒太快了，应该是说个股切换 10秒，指数轮播速度可能是另一种理解)
+            // 假设用户意思是 "动画持续时间"。如果配置是 30秒，那就30秒滚完一半。
+            
+            track.style.animationDuration = `${tickerSpeed}s`;
 
         } catch (e) { console.error("指数更新失败", e); }
     }
 
-    // 获取自选股列表
     async function loadWatchlist() {
         try {
             const res = await fetch(`${API_BASE}/finance/watchlist`);
             watchlist = await res.json();
             if (watchlist.length > 0) {
                 loadNextStock();
-                setInterval(loadNextStock, 15000); // 每15秒切换一只股票
+                setInterval(loadNextStock, stockSwitchInterval); 
             } else {
                 document.getElementById('stock-name').textContent = "无自选股";
             }
         } catch (e) { console.error("自选股列表失败", e); }
     }
 
-    // 加载下一只股票并绘图
     async function loadNextStock() {
         if (watchlist.length === 0) return;
         
@@ -428,7 +581,6 @@
             const res = await fetch(`${API_BASE}/finance/stock/${stock.symbol}?name=${encodeURIComponent(stock.name)}`);
             const data = await res.json();
             
-            // 更新文字
             const isUp = data.change >= 0;
             const color = isUp ? '#e74c3c' : '#2ecc71';
             const sign = isUp ? '+' : '';
@@ -439,59 +591,87 @@
             document.getElementById('stock-change').textContent = `${sign}${data.change.toFixed(2)} (${sign}${data.change_percent.toFixed(2)}%)`;
             document.getElementById('stock-change').style.color = color;
             
-            // 绘制图表
-            renderChart(data.history, color);
+            // 渲染两个图表
+            renderChart('stockChart1d', data.history_1d, color, '1d');
+            renderChart('stockChart1y', data.history_1y, color, '1y');
             
         } catch (e) { console.error(`个股 ${stock.name} 加载失败`, e); }
     }
 
-    function renderChart(dataPoints, lineColor) {
-        const ctx = document.getElementById('stockChart').getContext('2d');
+    function renderChart(canvasId, points, lineColor, type) {
+        const ctx = document.getElementById(canvasId).getContext('2d');
         
-        if (stockChart) {
-            stockChart.destroy();
+        // 销毁旧实例
+        if (chartInstances[canvasId]) {
+            chartInstances[canvasId].destroy();
+        }
+
+        if (!points || points.length === 0) {
+            // 可以绘制一个“无数据”的提示，或者保持空白
+            return;
         }
         
-        // 创建渐变
+        const labels = points.map(p => p.t);
+        const data = points.map(p => p.v);
+
         const gradient = ctx.createLinearGradient(0, 0, 0, 200);
-        gradient.addColorStop(0, lineColor.replace(')', ', 0.5)').replace('rgb', 'rgba'));
+        gradient.addColorStop(0, lineColor.replace('rgb', 'rgba').replace(')', ', 0.2)')); // 降低透明度
         gradient.addColorStop(1, 'rgba(0,0,0,0)');
 
-        stockChart = new Chart(ctx, {
+        // 根据类型调整配置
+        const isIntraday = type === '1d';
+
+        chartInstances[canvasId] = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: new Array(dataPoints.length).fill(''),
+                labels: labels,
                 datasets: [{
-                    data: dataPoints,
+                    data: data,
                     borderColor: lineColor,
                     backgroundColor: gradient,
-                    borderWidth: 2,
+                    borderWidth: 1.5,
                     pointRadius: 0,
+                    pointHoverRadius: 3,
                     fill: true,
-                    tension: 0.4
+                    tension: 0.2
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
+                plugins: { 
+                    legend: { display: false },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                    }
+                },
                 scales: {
-                    x: { display: false },
+                    x: { 
+                        display: true, // 显示X轴
+                        ticks: { 
+                            color: '#555', 
+                            font: {size: 9},
+                            maxTicksLimit: 6, // 限制标签数量
+                            maxRotation: 0
+                        },
+                        grid: { display: false }
+                    },
                     y: { 
                         display: true,
                         position: 'right',
                         grid: { color: 'rgba(255,255,255,0.05)' },
-                        ticks: { color: '#666', font: {size: 10} }
+                        ticks: { color: '#555', font: {size: 9} }
                     }
                 },
-                animation: { duration: 1000 }
+                animation: { duration: 0 } // 禁用动画以提高切换速度
             }
         });
     }
 
     // 初始化
     updateIndices();
-    setInterval(updateIndices, 60000); // 指数每分钟更新
+    setInterval(updateIndices, 60000); 
     loadWatchlist();
 
     // ==================== 4. 原有逻辑 (YouTube + Photos) ====================
@@ -582,7 +762,6 @@
         startSlideshow();
     }
 
-    // 键盘控制
     document.addEventListener('keydown', (e) => {
         if (e.key === 'ArrowLeft') { prevPhoto(); }
         else if (e.key === 'ArrowRight') { nextPhoto(); }

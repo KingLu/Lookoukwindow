@@ -132,6 +132,7 @@ async def index(request: Request):
     show_metadata = config.get('ui.show_metadata', True)
     time_format = config.get('ui.time_format', '24h')
     weather_config = config.get('weather', {})
+    finance_config = config.get('finance', {})
     
     return templates.TemplateResponse("index.html", {
         "request": request,
@@ -140,7 +141,8 @@ async def index(request: Request):
         "slideshow_interval_seconds": slideshow_interval,
         "show_metadata": show_metadata,
         "time_format": time_format,
-        "weather_config": weather_config
+        "weather_config": weather_config,
+        "finance_config": finance_config
     })
 
 
