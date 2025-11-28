@@ -206,9 +206,9 @@
 
     .weather-forecast {
         display: flex;
-        gap: 15px;
+        gap: 10px;
         border-left: 1px solid rgba(255,255,255,0.2);
-        padding-left: 20px;
+        padding-left: 15px;
     }
 
     .forecast-item {
@@ -469,9 +469,9 @@
     async function updateWeather() {
         if (window.isAppSleeping) return;
         try {
-            // 请求当前天气 + 未来48小时数据 (足够覆盖未来6小时)
+            // 请求当前天气 + 未来3天数据 (足够覆盖未来24小时)
             // 强制使用 Asia/Shanghai 时区 (北京时间)
-            const url = `https://api.open-meteo.com/v1/forecast?latitude=${weatherLat}&longitude=${weatherLon}&current=temperature_2m,weather_code&hourly=temperature_2m,weather_code&timezone=Asia%2FShanghai&forecast_days=2`;
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${weatherLat}&longitude=${weatherLon}&current=temperature_2m,weather_code&hourly=temperature_2m,weather_code&timezone=Asia%2FShanghai&forecast_days=3`;
             const res = await fetch(url);
             const data = await res.json();
             
@@ -516,8 +516,8 @@
                 const forecastContainer = document.getElementById('weather-forecast');
                 forecastContainer.innerHTML = '';
 
-                // 需求: 未来 2, 4, 6 小时
-                const offsets = [2, 4, 6];
+                // 需求: 未来 2, 4, 6, 12, 24 小时
+                const offsets = [2, 4, 6, 12, 24];
 
                 offsets.forEach(offset => {
                     const idx = currentIndex + offset;
