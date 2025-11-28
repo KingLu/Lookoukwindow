@@ -79,6 +79,11 @@ class Config:
                 'latitude': 39.73,
                 'longitude': 116.33
             },
+            'energy': {
+                'enabled': True,
+                'start_time': '22:30',
+                'end_time': '05:30'
+            },
             'finance': {
                 'indices': [
                     {'symbol': '000001.SS', 'name': '上证指数'},
