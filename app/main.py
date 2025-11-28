@@ -129,6 +129,7 @@ async def index(request: Request):
     default_channel = config.get('youtube.default_channel', 'NASA TV') or 'NASA TV'
     layout = config.get('ui.layout', 'side-by-side') or 'side-by-side'
     slideshow_interval = config.get('ui.slideshow_interval_seconds', 10) or 10
+    slideshow_transition = config.get('ui.slideshow_transition', 'fade') or 'fade'
     show_metadata = config.get('ui.show_metadata', True)
     time_format = config.get('ui.time_format', '24h')
     weather_config = config.get('weather', {})
@@ -140,6 +141,7 @@ async def index(request: Request):
         "default_channel": default_channel,
         "layout": layout,
         "slideshow_interval_seconds": slideshow_interval,
+        "slideshow_transition": slideshow_transition,
         "show_metadata": show_metadata,
         "time_format": time_format,
         "weather_config": weather_config,
