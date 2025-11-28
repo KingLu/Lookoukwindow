@@ -191,8 +191,11 @@ class AlbumService:
                 
                 # 提取EXIF信息 (仅图片)
                 if not is_video:
-                    exif = self._get_exif_data(file_path)
-                    photo_data.update(exif)
+                    try:
+                        exif = self._get_exif_data(file_path)
+                        photo_data.update(exif)
+                    except Exception as e:
+                         logger.warning(f"提取 EXIF 失败 {file_path.name}: {e}")
                 
                 photos.append(photo_data)
         
@@ -281,28 +284,34 @@ class AlbumService:
 
     def _get_location_name(self, lat, lon):
         """通过逆地理编码获取位置名称"""
-        try:
-            location = self.geolocator.reverse(f"{lat}, {lon}", language='zh-CN')
-            if location:
-                address = location.raw.get('address', {})
-                city = address.get('city', '')
-                state = address.get('state', '')
-                district = address.get('district', '')
-                
-                # 优先显示 市/区，或者 省/市
-                if city and district:
-                    return f"{city}{district}"
-                elif state and city:
-                    return f"{state}{city}"
-                elif state:
-                    return state
-                elif city:
-                    return city
-                else:
-                    return location.address.split(',')[0] # fallback
-        except Exception as e:
-            logger.error(f"逆地理编码失败: {e}")
+        # 暂时禁用 OpenStreetMap API，以解决加载超时问题
+        # 如果需要恢复，请取消注释以下代码并优化网络连接
         return None
+        
+        # try:
+        #     # 增加超时时间
+        #     location = self.geolocator.reverse(f"{lat}, {lon}", language='zh-CN', timeout=5)
+        #     if location:
+        #         address = location.raw.get('address', {})
+        #         city = address.get('city', '')
+        #         state = address.get('state', '')
+        #         district = address.get('district', '')
+        #         
+        #         # 优先显示 市/区，或者 省/市
+        #         if city and district:
+        #             return f"{city}{district}"
+        #         elif state and city:
+        #             return f"{state}{city}"
+        #         elif state:
+        #             return state
+        #         elif city:
+        #             return city
+        #         else:
+        #             return location.address.split(',')[0] # fallback
+        # except Exception as e:
+        #     # 记录错误但不崩溃，返回 None
+        #     logger.error(f"逆地理编码失败: {e}")
+        # return None
 
     def _get_exif_data(self, file_path: Path) -> Dict:
         """提取EXIF信息"""
