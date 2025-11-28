@@ -123,6 +123,20 @@ ETH-USD,ETH
 0981.HK,中芯国际
 ```
 
+## 常见问题 (FAQ)
+
+### Q: 在树莓派上安装依赖（如 yfinance, pandas）非常慢或失败？
+
+**A:** 树莓派（尤其是较旧型号）编译大型 Python 库（如 pandas, numpy）非常耗时且容易出错。
+
+推荐使用 **piwheels** 源安装预编译的二进制包，速度极快：
+
+```bash
+pip install yfinance --extra-index-url https://www.piwheels.org/simple
+```
+
+或者，如果您已经通过 `apt` 安装了系统级的 `python3-pandas`，可以修改虚拟环境下的 `pyvenv.cfg` 文件，设置 `include-system-site-packages = true` 来直接复用系统包，从而跳过安装。
+
 ## 许可证
 
 GPL-3.0
