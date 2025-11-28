@@ -89,10 +89,57 @@
         <div class="loading">加载中...</div>
     </div>
 </div>
+
+<!-- Sleep Mode Overlay -->
+<div id="sleep-overlay" style="display: none;">
+    <div class="sleep-content">
+        <div id="sleep-date-full" style="font-size: 1.8rem; color: #555; margin-bottom: 10px;">2025年01月01日 星期一</div>
+        <div id="sleep-time" style="font-size: 10rem; font-weight: bold; font-family: 'Segoe UI', sans-serif; color: #333; line-height: 1;">00:00:00</div>
+        <div id="sleep-lunar" style="font-size: 1.5rem; color: #444; margin-top: 15px;">腊月初八 乙巳年 [蛇年]</div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_css %}
 <style>
+    /* Sleep Overlay */
+    #sleep-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: #000;
+        z-index: 9999;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        cursor: none; /* 隐藏鼠标 */
+    }
+    
+    .sleep-content {
+        text-align: center;
+        color: #333; /* 默认暗淡颜色，防止太亮 */
+        transition: transform 1s ease-in-out; /* 平滑移动 */
+    }
+    
+    #sleep-time {
+        font-size: 10rem;
+        font-weight: bold;
+        font-family: "Segoe UI", monospace;
+        color: #444;
+    }
+    
+    #sleep-date-full {
+        font-size: 2rem;
+        color: #222;
+    }
+
+    #sleep-lunar {
+        font-size: 1.5rem;
+        color: #333;
+    }
+
     /* 布局重构 */
     .dashboard-left {
         display: flex;
@@ -376,6 +423,10 @@
     let is24Hour = {{ 'true' if time_format == '24h' else 'false' }};
     const weatherLat = {{ weather_config.get('latitude', 39.73) }};
     const weatherLon = {{ weather_config.get('longitude', 116.33) }};
+    
+    // Energy Config
+    // 移除旧的静态配置，改由 SleepManager 动态管理
+    // const energyEnabled = ... 
 
     // ==================== 1. 日期时间逻辑 ====================
     function updateTime() {
@@ -416,6 +467,7 @@
     // ==================== 2. 天气逻辑 ====================
     const weatherCodes = { 0:'☀️',1:'🌤️',2:'⛅',3:'☁️',45:'🌫️',48:'❄️',51:'🌧️',53:'🌧️',55:'🌧️',61:'🌧️',63:'🌧️',65:'🌧️',80:'🌦️',95:'⛈️' };
     async function updateWeather() {
+        if (window.isAppSleeping) return;
         try {
             // 请求当前天气 + 未来48小时数据 (足够覆盖未来6小时)
             // 强制使用 Asia/Shanghai 时区 (北京时间)
@@ -506,6 +558,7 @@
 
     // 获取指数并创建跑马灯
     async function updateIndices() {
+        if (window.isAppSleeping) return;
         try {
             const res = await fetch(`${API_BASE}/finance/indices`);
             const data = await res.json();
@@ -559,6 +612,7 @@
     }
 
     async function loadWatchlist() {
+        if (window.isAppSleeping) return;
         try {
             const res = await fetch(`${API_BASE}/finance/watchlist`);
             watchlist = await res.json();
@@ -572,6 +626,7 @@
     }
 
     async function loadNextStock() {
+        if (window.isAppSleeping) return;
         if (watchlist.length === 0) return;
         
         const stock = watchlist[currentStockIndex];
@@ -773,6 +828,162 @@
     window.addEventListener('DOMContentLoaded', () => {
         if (currentChannel) loadYouTubeChannel(currentChannel);
         loadPhotos();
+        initSleepManager(); // 始终初始化，由内部逻辑决定是否启用
     });
+    
+    // ==================== 5. 节能休眠逻辑 ====================
+    function initSleepManager() {
+        // 状态变量 (初始化使用模板值作为默认，后续通过 API 更新)
+        let configEnabled = {{ 'true' if energy_config.get('enabled', True) else 'false' }};
+        let configStartTime = "{{ energy_config.get('start_time', '22:30') }}";
+        let configEndTime = "{{ energy_config.get('end_time', '05:30') }}";
+
+        let isSleeping = false;
+        let sleepInterval = null;
+        let pixelShiftInterval = null;
+        let configPollInterval = null;
+
+        // 解析时间 "HH:MM" -> 分钟数
+        const parseTime = (t) => {
+            if (!t) return 0;
+            const [h, m] = t.split(':').map(Number);
+            return h * 60 + m;
+        };
+
+        // 同步最新配置
+        const syncConfig = async () => {
+            try {
+                const res = await fetch(`${API_BASE}/settings/`);
+                if (!res.ok) return;
+                const data = await res.json();
+                
+                // 更新本地配置变量
+                configEnabled = data.energy_enabled;
+                configStartTime = data.energy_start_time;
+                configEndTime = data.energy_end_time;
+                
+                // 立即检查状态 (响应修改)
+                checkSleep();
+            } catch (e) {
+                console.error("配置同步失败 (非致命)", e);
+            }
+        };
+
+        const checkSleep = () => {
+            // 如果功能未启用，确保不在休眠状态
+            if (!configEnabled) {
+                if (isSleeping) exitSleep();
+                return;
+            }
+
+            const now = new Date();
+            const currMins = now.getHours() * 60 + now.getMinutes();
+            const startMins = parseTime(configStartTime);
+            const endMins = parseTime(configEndTime);
+            
+            let shouldSleep = false;
+            // 修复逻辑: 处理 start > end (跨天) 和 start < end (当天)
+            if (startMins > endMins) {
+                // 跨天情况 (e.g. 22:30 to 05:30)
+                // should sleep if time is >= 22:30 OR time < 05:30
+                shouldSleep = (currMins >= startMins) || (currMins < endMins);
+            } else {
+                // 当天情况 (e.g. 01:00 to 06:00, or 19:30 to 21:30)
+                // should sleep if time is >= 19:30 AND time < 21:30
+                shouldSleep = (currMins >= startMins) && (currMins < endMins);
+            }
+
+            // 状态切换
+            if (shouldSleep && !isSleeping) {
+                enterSleep();
+            } else if (!shouldSleep && isSleeping) {
+                exitSleep();
+            }
+            
+            if (isSleeping) {
+                // 如果在休眠中，可能需要更新时钟 (虽然 updateSleepClock 有自己的 ticking，但这里双重保险)
+            }
+        };
+
+        const enterSleep = () => {
+            console.log("进入休眠模式");
+            isSleeping = true;
+            document.getElementById('sleep-overlay').style.display = 'flex';
+            
+            // 1. 销毁 YouTube (移除 src)
+            const iframe = document.getElementById('youtube-iframe');
+            if (iframe) iframe.src = '';
+            
+            // 2. 停止轮播
+            if (slideshowInterval) clearInterval(slideshowInterval);
+            
+            // 3. 停止其他定时器
+            window.isAppSleeping = true;
+
+            // 4. 启动像素偏移防止烧屏
+            pixelShiftInterval = setInterval(() => {
+                const content = document.querySelector('.sleep-content');
+                const x = Math.floor(Math.random() * 100) - 50; 
+                const y = Math.floor(Math.random() * 100) - 50;
+                content.style.transform = `translate(${x}px, ${y}px)`;
+            }, 60000 * 5); 
+            
+            // 立即更新一次时钟
+            updateSleepClock();
+        };
+
+        const exitSleep = () => {
+            console.log("退出休眠模式");
+            isSleeping = false;
+            window.isAppSleeping = false;
+            document.getElementById('sleep-overlay').style.display = 'none';
+            
+            // 1. 恢复 YouTube
+            if (currentChannel) loadYouTubeChannel(currentChannel);
+            
+            // 2. 恢复轮播
+            startSlideshow();
+            
+            // 3. 立即刷新数据
+            updateIndices();
+            updateWeather();
+            
+            if (pixelShiftInterval) clearInterval(pixelShiftInterval);
+        };
+
+        const updateSleepClock = () => {
+            const now = new Date();
+            const h = String(now.getHours()).padStart(2, '0');
+            const m = String(now.getMinutes()).padStart(2, '0');
+            const s = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('sleep-time').textContent = `${h}:${m}:${s}`;
+            
+            const days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+            const dateStr = `${now.getFullYear()}年${String(now.getMonth()+1).padStart(2,'0')}月${String(now.getDate()).padStart(2,'0')}日 ${days[now.getDay()]}`;
+            document.getElementById('sleep-date-full').textContent = dateStr;
+
+            if (window.Lunar) {
+                const lunar = Lunar.fromDate(now);
+                const lunarStr = `${lunar.getMonthInChinese()}月${lunar.getDayInChinese()} · ${lunar.getYearInGanZhi()}年 [${lunar.getYearShengXiao()}年]`;
+                document.getElementById('sleep-lunar').textContent = lunarStr;
+            }
+        };
+
+        // 定时任务
+        
+        // 1. 时钟更新 (每秒) - 仅在休眠时有效
+        if (sleepInterval) clearInterval(sleepInterval);
+        sleepInterval = setInterval(() => {
+            if (isSleeping) updateSleepClock();
+        }, 1000);
+        
+        // 2. 状态检查 (每秒) - 确保时间一到立即响应
+        setInterval(checkSleep, 1000);
+        
+        // 3. 配置同步 (每5秒) - 确保设置修改后无需刷新页面
+        setInterval(syncConfig, 5000);
+        
+        checkSleep(); // 立即检查一次
+    }
 </script>
 {% endblock %}
