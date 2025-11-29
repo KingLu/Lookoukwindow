@@ -135,6 +135,7 @@ class Config:
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.albums_dir.mkdir(parents=True, exist_ok=True)
         self.thumbnails_dir.mkdir(parents=True, exist_ok=True)
+        self.web_images_dir.mkdir(parents=True, exist_ok=True)
     
     def _ensure_security(self):
         """确保安全配置"""
@@ -230,6 +231,11 @@ class Config:
     def thumbnails_dir(self) -> Path:
         """获取缩略图目录"""
         return self.data_dir / "thumbnails"
+        
+    @property
+    def web_images_dir(self) -> Path:
+        """获取Web优化图目录 (1080p/720p)"""
+        return self.data_dir / "web_images"
     
     @property
     def session_secret(self) -> str:

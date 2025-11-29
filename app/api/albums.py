@@ -149,3 +149,18 @@ async def serve_thumbnail(
         if not path.exists():
             raise HTTPException(status_code=404, detail="Thumbnail not found")
     return FileResponse(path)
+
+@router.get("/{album_id}/photos/{filename}/web")
+async def serve_web_photo(
+    album_id: str,
+    filename: str,
+    service: AlbumService = Depends(get_album_service)
+):
+    """获取Web优化图"""
+    path = service.web_images_dir / album_id / filename
+    if not path.exists():
+        # 回退到原图
+        path = service.albums_dir / album_id / filename
+        if not path.exists():
+            raise HTTPException(status_code=404, detail="Photo not found")
+    return FileResponse(path)

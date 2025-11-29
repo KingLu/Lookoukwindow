@@ -377,8 +377,11 @@
         padding: 15px;
         border-radius: 8px;
         font-size: 14px;
-        z-index: 10;
+        z-index: 200; /* 提高层级，确保在 nav 之上 */
         color: #fff;
+        display: block; /* 确保默认显示 */
+        opacity: 1;
+        pointer-events: none; /* 让点击穿透 */
     }
     
     .photo-nav {
@@ -399,6 +402,8 @@
     .photo-nav.prev { left: 20px; }
     .photo-nav.next { right: 20px; }
     
+    .hidden { display: none !important; }
+    
     .error { color: #ff4444; padding: 20px; text-align: center; }
 </style>
 {% endblock %}
@@ -409,13 +414,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-    // 抑制错误日志
-    const originalError = console.error;
-    console.error = function(...args) {
-        const errorMsg = args.join(' ');
-        if (errorMsg.includes('inspector.js') || errorMsg.includes('XMLHttpRequest') || errorMsg.includes('responseText') || errorMsg.includes('InvalidStateError')) return;
-        originalError.apply(console, args);
-    };
+    // 错误处理已移动到 base.html 中统一处理
     
     const API_BASE = '/api';
     
@@ -590,21 +589,6 @@
 
             track.innerHTML = createCardsHtml(data) + createCardsHtml(data);
             container.appendChild(track);
-            
-            // 使用配置的固定速度 (CSS animation duration)
-            // 如果用户希望是"恒定物理速度" (px/s)，可以使用 totalWidth 计算
-            // 这里根据需求理解为 "轮播一圈的时间"，或者我们也可以结合宽度计算
-            // 既然配置项叫 ticker_speed_seconds，通常理解为动画周期或基准速度
-            
-            // 方案A: 直接使用配置作为周期 (适合内容长度固定的情况)
-            // track.style.animationDuration = `${tickerSpeed}s`;
-
-            // 方案B: 将配置视为基准（比如针对标准屏幕宽度的耗时），根据内容长度缩放
-            // 之前的逻辑: const duration = Math.max(totalWidth / 50, 10);
-            // 现在的需求: "速度...改成可配置的"
-            // 我们使用配置值作为动画周期，但为了防止内容过长导致滚动飞快，还是跟宽度挂钩比较合理?
-            // 用户说 "默认 2秒" (对于轮播来说2秒太快了，应该是说个股切换 10秒，指数轮播速度可能是另一种理解)
-            // 假设用户意思是 "动画持续时间"。如果配置是 30秒，那就30秒滚完一半。
             
             track.style.animationDuration = `${tickerSpeed}s`;
 
@@ -796,7 +780,9 @@
         if (photo.type === 'video' || (photo.filename && photo.filename.match(/\.(mp4|mov)$/i))) {
              contentHtml = `<video src="${photo.url}" class="photo-video" autoplay muted loop playsinline style="max-width:100%;max-height:100%;"></video>`;
         } else {
-             contentHtml = `<img src="${photo.url}" class="photo-image" loading="eager">`;
+             // 优先使用 Web 优化图
+             const src = photo.web_url || photo.url;
+             contentHtml = `<img src="${src}" class="photo-image" loading="eager">`;
         }
         wrapper.innerHTML = contentHtml;
         
@@ -822,14 +808,34 @@
         
         // 更新元数据
         updateMetadata(photo, index);
+        
+        // 预加载下一张
+        preloadNextPhoto(index);
+    }
+    
+    function preloadNextPhoto(currentIndex) {
+        if (photos.length <= 1) return;
+        const nextIndex = (currentIndex + 1) % photos.length;
+        const nextPhoto = photos[nextIndex];
+        
+        if (nextPhoto.type !== 'video' && (!nextPhoto.filename || !nextPhoto.filename.match(/\.(mp4|mov)$/i))) {
+            const src = nextPhoto.web_url || nextPhoto.url;
+            const img = new Image();
+            img.src = src;
+        }
     }
     
     function updateMetadata(photo, index) {
         const metaContainer = document.getElementById('photo-metadata-container');
         if (!metaContainer) return;
         
-        if (!showMetadata) {
+        // 强制移除 hidden 类，并设置显示，除非 showMetadata 为 false
+        if (showMetadata) {
+            metaContainer.classList.remove('hidden');
+            metaContainer.style.display = 'block';
+        } else {
             metaContainer.classList.add('hidden');
+            metaContainer.style.display = 'none';
             return;
         }
         
@@ -837,53 +843,63 @@
         let secondaryHtml = '';
         
         // 1. 主标题逻辑：优先显示 相册名称，如果没有相册名则尝试用位置名，最后是 "未命名相册"
-        // 用户需求：美化布局，不要突兀。
-        // 现在的设计：
-        // 主行 (大字): 相册名称 (如 "如意平安的家庭相册")
-        // 副行 (小字): 时间 | 设备 | 地点
-        
         primaryText = photo.album_name || '未命名相册';
         
         // 2. 副信息逻辑
         
         // 时间
         let timeStr = '';
-        if (photo.date_taken) {
-            // 格式化: 2025-11-15 12:45
-            try {
-                const d = new Date(photo.date_taken.replace(' ', 'T'));
-                const datePart = d.toLocaleDateString('zh-CN', {year: 'numeric', month: '2-digit', day: '2-digit'}).replace(/\//g, '-');
-                const timePart = d.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit', hour12: false});
-                timeStr = `${datePart} ${timePart}`;
-            } catch(e) { timeStr = photo.date_taken; }
-        } else if (photo.created_at) {
-            try { 
+        try {
+            if (photo.date_taken) {
+                // 尝试修复可能的日期格式差异
+                let dt = photo.date_taken;
+                if (typeof dt === 'string') {
+                    dt = dt.replace(' ', 'T');
+                }
+                const d = new Date(dt);
+                if (!isNaN(d.getTime())) {
+                    const datePart = d.toLocaleDateString('zh-CN', {year: 'numeric', month: '2-digit', day: '2-digit'}).replace(/\//g, '-');
+                    const timePart = d.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit', hour12: false});
+                    timeStr = `${datePart} ${timePart}`;
+                } else {
+                    timeStr = String(photo.date_taken);
+                }
+            } else if (photo.created_at) {
                  const d = new Date(photo.created_at);
-                 timeStr = d.toLocaleDateString('zh-CN').replace(/\//g, '-');
-            } catch(e) {}
-        }
+                 if (!isNaN(d.getTime())) {
+                    timeStr = d.toLocaleDateString('zh-CN').replace(/\//g, '-');
+                 }
+            }
+        } catch(e) { console.error("时间解析错误", e); }
+        
         if (timeStr) {
              secondaryHtml += `<div class="meta-item"><span class="meta-icon">📅</span> ${timeStr}</div>`;
         }
         
         // 设备
-        if (photo.model) {
-            const make = photo.make ? photo.make.replace(/\0/g, '') : '';
-            const model = photo.model.replace(/\0/g, '');
-            let device = model;
-            // 简单去重逻辑
-            if (make && !model.toLowerCase().includes(make.toLowerCase())) {
-                device = `${make} ${model}`;
+        try {
+            if (photo.model) {
+                const make = photo.make ? String(photo.make).replace(/\0/g, '').trim() : '';
+                const model = String(photo.model).replace(/\0/g, '').trim();
+                let device = model;
+                // 简单去重逻辑
+                if (make && !model.toLowerCase().includes(make.toLowerCase())) {
+                    device = `${make} ${model}`;
+                }
+                if (device) {
+                    secondaryHtml += `<div class="meta-item"><span class="meta-icon">📷</span> ${device}</div>`;
+                }
             }
-            secondaryHtml += `<div class="meta-item"><span class="meta-icon">📷</span> ${device}</div>`;
-        }
+        } catch(e) { console.error("设备信息解析错误", e); }
         
-        // 地点 (优先显示解析后的 location_name，如果没有但有坐标显示 "包含地理位置")
-        if (photo.location_name) {
-             secondaryHtml += `<div class="meta-item"><span class="meta-icon">📍</span> ${photo.location_name}</div>`;
-        } else if (photo.has_location) {
-             secondaryHtml += `<div class="meta-item"><span class="meta-icon">📍</span> ${photo.location && photo.location.lat ? '未知地点' : '包含位置信息'}</div>`;
-        }
+        // 地点
+        try {
+            if (photo.location_name) {
+                 secondaryHtml += `<div class="meta-item"><span class="meta-icon">📍</span> ${photo.location_name}</div>`;
+            } else if (photo.has_location) {
+                 secondaryHtml += `<div class="meta-item"><span class="meta-icon">📍</span> ${photo.location && photo.location.lat ? '包含位置信息' : '包含位置信息'}</div>`;
+            }
+        } catch(e) { console.error("位置信息解析错误", e); }
 
         const html = `
             <div class="meta-primary">
