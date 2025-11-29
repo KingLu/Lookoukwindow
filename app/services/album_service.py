@@ -23,7 +23,7 @@ class AlbumService:
         self.albums_dir.mkdir(parents=True, exist_ok=True)
         
         # 启动时尝试迁移旧数据
-        self.library_service.migrate_legacy_data(self)
+        self.library_service.migrate_legacy_data()
 
     def create_album(self, name: str, description: str = "") -> Dict:
         """创建新相册"""
