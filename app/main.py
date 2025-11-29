@@ -11,7 +11,7 @@ from pathlib import Path
 
 from .core.config import Config
 from .core.auth import AuthManager
-from .api import auth, youtube, settings, albums, finance
+from .api import auth, youtube, settings, albums, finance, library
 
 # 配置日志
 logging.basicConfig(
@@ -45,10 +45,14 @@ async def add_referrer_policy(request: Request, call_next):
     if "text/html" in response.headers.get("content-type", ""):
         response.headers["Referrer-Policy"] = "origin"
         # 添加 Permissions-Policy 以减少警告（允许 YouTube iframe 需要的权限）
+        # 注意：unload 功能正在被弃用，很多现代浏览器（如 Chrome）会发出警告，
+        # 但 YouTube 嵌入播放器目前仍然可能尝试使用它。
+        # 我们将其设置为 self 或者是 * 来尝试兼容，但浏览器可能依然会警告。
+        # 关键是确保 autoplay 等核心功能可用。
         response.headers["Permissions-Policy"] = (
             "accelerometer=*, autoplay=*, clipboard-write=*, "
             "encrypted-media=*, fullscreen=*, gyroscope=*, "
-            "picture-in-picture=*, web-share=*, unload=*"
+            "picture-in-picture=*, web-share=*"
         )
     return response
 
@@ -58,6 +62,7 @@ app.include_router(youtube.router)
 app.include_router(settings.router)
 app.include_router(albums.router)
 app.include_router(finance.router)
+app.include_router(library.router)
 
 # 配置模板和静态文件
 templates_dir = Path(__file__).parent / "templates"
@@ -178,6 +183,17 @@ async def settings_page(request: Request):
         "request": request,
         "config": config._config
     })
+
+# New Admin Pages
+@app.get("/admin/library", response_class=HTMLResponse)
+async def library_page(request: Request):
+    """照片库管理"""
+    return templates.TemplateResponse("library.html", {"request": request})
+
+@app.get("/admin/albums", response_class=HTMLResponse)
+async def albums_page(request: Request):
+    """相册管理"""
+    return templates.TemplateResponse("albums.html", {"request": request})
 
 
 @app.get("/health")

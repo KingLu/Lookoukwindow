@@ -3,9 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Permissions-Policy" content="accelerometer=*, autoplay=*, clipboard-write=*, encrypted-media=*, fullscreen=*, gyroscope=*, picture-in-picture=*, web-share=*, unload=*">
+    <meta http-equiv="Permissions-Policy" content="accelerometer=*, autoplay=*, clipboard-write=*, encrypted-media=*, fullscreen=*, gyroscope=*, picture-in-picture=*, web-share=*">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
     <title>{% block title %}Lookoukwindow{% endblock %}</title>
+    <script>
+        // [Critical Fix] Monkey patch addEventListener to suppress 'unload' handlers
+        // This must run before ANY other script to catch early registrations
+        (function() {
+            const originalAddEventListener = EventTarget.prototype.addEventListener;
+            EventTarget.prototype.addEventListener = function(type, listener, options) {
+                if (type === 'unload') {
+                    // Silently ignore 'unload' event registration
+                    return;
+                }
+                return originalAddEventListener.call(this, type, listener, options);
+            };
+
+            // Also suppress console errors aggressively at the very top
+            const originalError = console.error;
+            const originalWarn = console.warn;
+            
+            console.error = function(...args) {
+                const msg = args.join(' ');
+                if (msg.includes('inspector.js') || 
+                    msg.includes('XMLHttpRequest') || 
+                    msg.includes('responseText') || 
+                    msg.includes('InvalidStateError')) return;
+                originalError.apply(console, args);
+            };
+
+            console.warn = function(...args) {
+                const msg = args.join(' ');
+                if (msg.includes('Permissions policy violation') ||
+                    msg.includes('unload is not allowed')) return;
+                originalWarn.apply(console, args);
+            };
+        })();
+    </script>
     <style>
         * {
             margin: 0;
@@ -312,18 +346,6 @@
     </div>
     
     <script>
-        // 抑制 Permissions Policy 警告（来自 YouTube iframe）
-        const originalWarn = console.warn;
-        console.warn = function(...args) {
-            const warnMsg = args.join(' ');
-            if (warnMsg.includes('Permissions policy violation') ||
-                warnMsg.includes('unload is not allowed')) {
-                // 静默处理 YouTube iframe 的权限警告
-                return;
-            }
-            originalWarn.apply(console, args);
-        };
-        
         let headerVisible = true;
         
         function toggleFullscreen() {

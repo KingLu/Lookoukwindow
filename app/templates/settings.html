@@ -5,28 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>设置 - Lookoukwindow</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: #1a1a1a; color: #fff; padding-bottom: 80px; }
         
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: #1a1a1a;
-            color: #fff;
-            padding: 20px;
-            padding-bottom: 80px; /* 为底部悬浮栏留出空间 */
+        /* Admin Nav */
+        .admin-nav {
+            background: #2d2d2d;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            border-bottom: 1px solid #333;
         }
+        .admin-nav a {
+            color: #aaa;
+            text-decoration: none;
+            font-size: 14px;
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+        .admin-nav a.active { background: #444; color: #fff; }
+        .admin-nav a:hover { color: #fff; }
+        .back-home { margin-right: auto; color: #667eea !important; font-weight: bold; }
+
+        .container { max-width: 900px; margin: 0 auto; padding: 0 20px; }
         
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-        }
-        
-        h1 {
-            margin-bottom: 30px;
-        }
+        h1 { margin-bottom: 30px; }
         
         .section {
             background: rgba(255, 255, 255, 0.05);
@@ -42,17 +47,10 @@
             padding-bottom: 10px;
         }
         
-        .form-group {
-            margin-bottom: 15px;
-        }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; color: #ccc; }
         
-        label {
-            display: block;
-            margin-bottom: 5px;
-            color: #ccc;
-        }
-        
-        select, input[type="text"], input[type="number"] {
+        select, input[type="text"], input[type="number"], input[type="time"], textarea {
             width: 100%;
             padding: 8px;
             background: rgba(255, 255, 255, 0.1);
@@ -63,327 +61,57 @@
         }
         
         button {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            margin-right: 10px;
-            transition: background 0.2s;
+            background: #667eea; color: white; border: none; padding: 8px 16px; border-radius: 4px;
+            cursor: pointer; font-size: 14px; margin-right: 10px; transition: background 0.2s;
         }
+        button:hover { background: #5568d3; }
         
-        button:hover {
-            background: #5568d3;
-        }
-
-        button.danger {
-            background: #e74c3c;
-        }
-        button.danger:hover {
-            background: #c0392b;
-        }
-        
-        button.secondary {
-            background: #95a5a6;
-        }
-        button.secondary:hover {
-            background: #7f8c8d;
-        }
+        button.danger { background: #e74c3c; }
+        button.danger:hover { background: #c0392b; }
         
         button.primary-btn {
-            background: #27ae60;
-            font-weight: bold;
-            padding: 10px 20px;
-            font-size: 16px;
+            background: #27ae60; font-weight: bold; padding: 10px 20px; font-size: 16px;
         }
-        button.primary-btn:hover {
-            background: #219150;
-        }
-        
-        .back-link {
-            display: inline-block;
-            margin-bottom: 20px;
-            color: #667eea;
-            text-decoration: none;
-        }
+        button.primary-btn:hover { background: #219150; }
         
         .status {
-            margin-top: 0;
-            padding: 10px;
-            border-radius: 4px;
-            display: none;
-            margin-right: 10px;
+            margin-top: 0; padding: 10px; border-radius: 4px; display: none; margin-right: 10px;
         }
-        
-        .status.success {
-            background: rgba(39, 174, 96, 0.2);
-            color: #27ae60;
-            display: inline-block;
-        }
-        
-        .status.error {
-            background: rgba(231, 76, 60, 0.2);
-            color: #e74c3c;
-            display: inline-block;
-        }
+        .status.success { background: rgba(39, 174, 96, 0.2); color: #27ae60; display: inline-block; }
+        .status.error { background: rgba(231, 76, 60, 0.2); color: #e74c3c; display: inline-block; }
 
         /* Bottom Sticky Bar */
         .bottom-bar {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background: rgba(26, 26, 26, 0.95);
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 15px 0;
-            backdrop-filter: blur(10px);
-            z-index: 1000;
+            position: fixed; bottom: 0; left: 0; width: 100%;
+            background: rgba(26, 26, 26, 0.95); border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 15px 0; backdrop-filter: blur(10px); z-index: 1000;
             box-shadow: 0 -5px 20px rgba(0,0,0,0.5);
         }
-
         .bottom-bar-content {
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 0 20px;
-            display: flex;
-            justify-content: flex-end;
-            align-items: center;
-        }
-
-        /* Album Grid */
-        .album-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 20px;
-            margin-top: 15px;
-        }
-
-        .album-card {
-            background: rgba(255,255,255,0.08);
-            border-radius: 8px;
-            overflow: hidden;
-            transition: transform 0.2s;
-            position: relative;
-        }
-        
-        .album-card:hover {
-            transform: translateY(-2px);
-            background: rgba(255,255,255,0.12);
-        }
-
-        .album-cover {
-            height: 150px;
-            background: #333;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-        }
-
-        .album-cover img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .album-cover .placeholder {
-            color: #666;
-            font-size: 40px;
-        }
-
-        .album-info {
-            padding: 12px;
-        }
-
-        .album-name {
-            font-weight: bold;
-            margin-bottom: 5px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .album-meta {
-            font-size: 12px;
-            color: #999;
-            margin-bottom: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .album-actions {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 10px;
-        }
-
-        .album-actions button {
-            padding: 4px 8px;
-            font-size: 12px;
-            margin-right: 5px;
+            max-width: 900px; margin: 0 auto; padding: 0 20px;
+            display: flex; justify-content: flex-end; align-items: center;
         }
 
         /* Toggle Switch */
-        .switch {
-            position: relative;
-            display: inline-block;
-            width: 40px;
-            height: 20px;
-        }
-
-        .switch input { 
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #ccc;
-            transition: .4s;
-            border-radius: 34px;
-        }
-
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 16px;
-            width: 16px;
-            left: 2px;
-            bottom: 2px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
-        }
-
-        input:checked + .slider {
-            background-color: #27ae60;
-        }
-
-        input:checked + .slider:before {
-            transform: translateX(20px);
-        }
-
-        /* Modal */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.8);
-        }
-
-        .modal-content {
-            background-color: #2d2d2d;
-            margin: 5% auto;
-            padding: 20px;
-            border-radius: 8px;
-            width: 80%;
-            max-width: 900px;
-            max-height: 90vh;
-            overflow-y: auto;
-            color: #fff;
-            position: relative;
-        }
-
-        .close-modal {
-            color: #aaa;
-            float: right;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        .close-modal:hover {
-            color: #fff;
-        }
-
-        /* Photo Grid inside Modal */
-        .photo-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-            gap: 10px;
-            margin-top: 15px;
-        }
-
-        .photo-item {
-            position: relative;
-            aspect-ratio: 1;
-            background: #000;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-
-        .photo-item img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .photo-item .delete-btn {
-            position: absolute;
-            top: 4px;
-            right: 4px;
-            background: rgba(231, 76, 60, 0.8);
-            color: white;
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            font-size: 14px;
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-
-        .photo-item:hover .delete-btn {
-            opacity: 1;
-        }
-        
-        /* Upload Zone */
-        .upload-zone {
-            border: 2px dashed rgba(255,255,255,0.2);
-            border-radius: 8px;
-            padding: 20px;
-            text-align: center;
-            margin-bottom: 20px;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        
-        .upload-zone:hover {
-            background: rgba(255,255,255,0.05);
-        }
+        .switch { position: relative; display: inline-block; width: 40px; height: 20px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #27ae60; }
+        input:checked + .slider:before { transform: translateX(20px); }
     </style>
 </head>
 <body>
+
+    <div class="admin-nav">
+        <a href="/" class="back-home">← 返回展示屏</a>
+        <a href="/settings" class="active">系统设置</a>
+        <a href="/admin/library">照片库</a>
+        <a href="/admin/albums">相册管理</a>
+    </div>
+
     <div class="container">
-        <a href="/" class="back-link">← 返回主页</a>
         <h1>系统设置</h1>
-        
-        <div class="section">
-            <h2>本地相册管理</h2>
-            <div class="form-group">
-                <button onclick="showCreateAlbumModal()">+ 新建相册</button>
-            </div>
-            
-            <div id="albumList" class="album-grid">
-                <!-- Album cards rendered here -->
-            </div>
-        </div>
         
         <!-- Main Settings Form Container -->
         <div id="mainSettings">
@@ -493,12 +221,12 @@
                 <div class="form-group">
                     <label>指数列表 (Symbol, Name)</label>
                     <div style="font-size:12px;color:#999;margin-bottom:5px;">每行一个，格式：代码,名称 (例如: ^IXIC,纳斯达克)</div>
-                    <textarea id="financeIndices" rows="6" style="width:100%;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;padding:8px;border-radius:4px;font-family:monospace;font-size:13px;"></textarea>
+                    <textarea id="financeIndices" rows="6" style="font-family:monospace;"></textarea>
                 </div>
                 <div class="form-group">
                     <label>自选股列表 (Symbol, Name)</label>
                     <div style="font-size:12px;color:#999;margin-bottom:5px;">每行一个，格式：代码,名称 (例如: AAPL,苹果)</div>
-                    <textarea id="financeStocks" rows="6" style="width:100%;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;padding:8px;border-radius:4px;font-family:monospace;font-size:13px;"></textarea>
+                    <textarea id="financeStocks" rows="6" style="font-family:monospace;"></textarea>
                 </div>
                 <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                     <div>
@@ -530,307 +258,14 @@
         </div>
     </div>
 
-    <!-- Create Album Modal -->
-    <div id="createAlbumModal" class="modal">
-        <div class="modal-content" style="width: 400px;">
-            <span class="close-modal" onclick="closeModal('createAlbumModal')">&times;</span>
-            <h2>新建相册</h2>
-            <div class="form-group" style="margin-top: 20px;">
-                <label>相册名称</label>
-                <input type="text" id="newAlbumName" placeholder="例如：家庭合影">
-            </div>
-            <div class="form-group">
-                <label>描述 (可选)</label>
-                <input type="text" id="newAlbumDesc" placeholder="相册描述...">
-            </div>
-            <div style="text-align: right;">
-                <button onclick="createAlbum()">创建</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Album Detail Modal -->
-    <div id="albumDetailModal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal" onclick="closeModal('albumDetailModal')">&times;</span>
-            <h2 id="modalAlbumName">相册详情</h2>
-            <p id="modalAlbumDesc" style="color: #999; font-size: 14px; margin-bottom: 20px;"></p>
-            
-            <input type="file" id="photoUpload" multiple accept="image/*" style="display: none;" onchange="handleFileSelect(this)">
-            
-            <div class="upload-zone" onclick="document.getElementById('photoUpload').click()">
-                <p style="font-size: 24px;">📸</p>
-                <p>点击选择或拖拽照片到此处上传</p>
-                <p style="font-size: 12px; color: #999;">支持 JPG, PNG, WebP</p>
-            </div>
-
-            <div id="uploadProgress" style="display: none; margin-bottom: 10px; color: #27ae60;">
-                正在上传...
-            </div>
-            
-            <div id="photoList" class="photo-grid">
-                <!-- Photos rendered here -->
-            </div>
-        </div>
-    </div>
-
     <script>
         const API_BASE = '/api';
-        let currentAlbumId = null;
 
         // 初始化
         window.addEventListener('DOMContentLoaded', () => {
             loadSettings();
             loadChannels();
-            loadAlbums();
-            
-            // 拖拽上传支持
-            const dropZone = document.querySelector('.upload-zone');
-            dropZone.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                dropZone.style.background = 'rgba(255,255,255,0.1)';
-            });
-            dropZone.addEventListener('dragleave', (e) => {
-                e.preventDefault();
-                dropZone.style.background = '';
-            });
-            dropZone.addEventListener('drop', (e) => {
-                e.preventDefault();
-                dropZone.style.background = '';
-                if(e.dataTransfer.files.length > 0 && currentAlbumId) {
-                    uploadPhotos(e.dataTransfer.files);
-                }
-            });
         });
-
-        // --- Albums Logic ---
-
-        async function loadAlbums() {
-            try {
-                const res = await fetch(`${API_BASE}/albums`);
-                const albums = await res.json();
-                renderAlbums(albums);
-            } catch (e) {
-                console.error("加载相册失败", e);
-            }
-        }
-
-        function renderAlbums(albums) {
-            const container = document.getElementById('albumList');
-            container.innerHTML = '';
-            
-            if (albums.length === 0) {
-                container.innerHTML = '<div style="color: #666; grid-column: 1/-1; text-align: center; padding: 20px;">暂无相册，请点击新建</div>';
-                return;
-            }
-
-            albums.forEach(album => {
-                const coverUrl = album.cover_photo 
-                    ? `${API_BASE}/albums/${album.id}/photos/${album.cover_photo}/thumbnail`
-                    : null;
-                
-                const card = document.createElement('div');
-                card.className = 'album-card';
-                card.innerHTML = `
-                    <div class="album-cover" onclick="openAlbum('${album.id}', '${album.name}', '${album.description || ''}')" style="cursor: pointer;">
-                        ${coverUrl 
-                            ? `<img src="${coverUrl}" alt="${album.name}" loading="lazy">` 
-                            : `<div class="placeholder">📁</div>`
-                        }
-                    </div>
-                    <div class="album-info">
-                        <div class="album-name" title="${album.name}">${album.name}</div>
-                        <div class="album-meta">
-                            <span>${album.photo_count} 张照片</span>
-                            <label class="switch" title="启用轮播">
-                                <input type="checkbox" ${album.active ? 'checked' : ''} onchange="toggleAlbumActive('${album.id}', this.checked)">
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-                        <div class="album-actions">
-                            <button class="secondary" onclick="openAlbum('${album.id}', '${album.name}', '${album.description || ''}')">管理照片</button>
-                            <button class="danger" onclick="deleteAlbum('${album.id}', '${album.name}')">删除</button>
-                        </div>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
-        }
-
-        async function createAlbum() {
-            const name = document.getElementById('newAlbumName').value.trim();
-            const desc = document.getElementById('newAlbumDesc').value.trim();
-            if (!name) {
-                alert("请输入相册名称");
-                return;
-            }
-
-            const formData = new FormData();
-            formData.append('name', name);
-            formData.append('description', desc);
-
-            try {
-                const res = await fetch(`${API_BASE}/albums`, {
-                    method: 'POST',
-                    body: formData
-                });
-                if (res.ok) {
-                    closeModal('createAlbumModal');
-                    document.getElementById('newAlbumName').value = '';
-                    document.getElementById('newAlbumDesc').value = '';
-                    loadAlbums();
-                } else {
-                    alert("创建失败");
-                }
-            } catch (e) {
-                alert("创建出错: " + e.message);
-            }
-        }
-
-        async function toggleAlbumActive(id, active) {
-            const formData = new FormData();
-            formData.append('active', active);
-            try {
-                await fetch(`${API_BASE}/albums/${id}`, {
-                    method: 'PUT',
-                    body: formData
-                });
-                // 不需要刷新整个列表，状态是本地切换的
-            } catch (e) {
-                console.error("更新状态失败", e);
-                loadAlbums(); // 出错回滚
-            }
-        }
-
-        async function deleteAlbum(id, name) {
-            if (!confirm(`确定要删除相册 "${name}" 及其所有照片吗？`)) return;
-            
-            try {
-                await fetch(`${API_BASE}/albums/${id}`, { method: 'DELETE' });
-                loadAlbums();
-            } catch (e) {
-                alert("删除失败: " + e.message);
-            }
-        }
-
-        // --- Photo Management Logic ---
-
-        async function openAlbum(id, name, desc) {
-            currentAlbumId = id;
-            document.getElementById('modalAlbumName').textContent = name;
-            document.getElementById('modalAlbumDesc').textContent = desc;
-            
-            // Show modal
-            document.getElementById('albumDetailModal').style.display = 'block';
-            
-            // Load photos
-            loadPhotos(id);
-        }
-
-        async function loadPhotos(albumId) {
-            const container = document.getElementById('photoList');
-            container.innerHTML = '<div style="color:#999">加载中...</div>';
-            
-            try {
-                const res = await fetch(`${API_BASE}/albums/${albumId}/photos`);
-                const photos = await res.json();
-                renderPhotos(photos);
-            } catch (e) {
-                container.innerHTML = '加载失败';
-            }
-        }
-
-        function renderPhotos(photos) {
-            const container = document.getElementById('photoList');
-            container.innerHTML = '';
-            
-            photos.forEach(photo => {
-                const div = document.createElement('div');
-                div.className = 'photo-item';
-                const thumb = photo.thumbnail_url 
-                    ? `<img src="${photo.thumbnail_url}" loading="lazy" title="${photo.filename}">`
-                    : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#333;color:#fff;flex-direction:column;"><span style="font-size:24px">🎬</span><span style="font-size:10px;margin-top:5px;word-break:break-all;padding:0 5px;">${photo.filename}</span></div>`;
-                
-                div.innerHTML = `
-                    ${thumb}
-                    <div class="delete-btn" onclick="deletePhoto('${photo.filename}')" title="删除">×</div>
-                `;
-                container.appendChild(div);
-            });
-        }
-
-        function handleFileSelect(input) {
-            if (input.files.length > 0) {
-                uploadPhotos(input.files);
-            }
-        }
-
-        async function uploadPhotos(fileList) {
-            if (!currentAlbumId) return;
-            
-            const progressDiv = document.getElementById('uploadProgress');
-            progressDiv.style.display = 'block';
-            progressDiv.textContent = `正在上传 ${fileList.length} 张照片...`;
-            
-            const formData = new FormData();
-            for (let i = 0; i < fileList.length; i++) {
-                formData.append('files', fileList[i]);
-            }
-
-            try {
-                const res = await fetch(`${API_BASE}/albums/${currentAlbumId}/photos`, {
-                    method: 'POST',
-                    body: formData
-                });
-                const result = await res.json();
-                progressDiv.textContent = "上传完成！";
-                setTimeout(() => progressDiv.style.display = 'none', 2000);
-                
-                // Reload photos
-                loadPhotos(currentAlbumId);
-                // Update album list (for cover/count)
-                loadAlbums();
-            } catch (e) {
-                progressDiv.textContent = "上传失败: " + e.message;
-                progressDiv.style.color = '#e74c3c';
-            }
-        }
-
-        async function deletePhoto(filename) {
-            if (!confirm('确定删除这张照片吗？')) return;
-            
-            try {
-                await fetch(`${API_BASE}/albums/${currentAlbumId}/photos/${filename}`, {
-                    method: 'DELETE'
-                });
-                loadPhotos(currentAlbumId);
-                loadAlbums();
-            } catch (e) {
-                alert("删除失败");
-            }
-        }
-
-        // --- Modal Utilities ---
-        function showCreateAlbumModal() {
-            document.getElementById('createAlbumModal').style.display = 'block';
-            document.getElementById('newAlbumName').focus();
-        }
-
-        function closeModal(id) {
-            document.getElementById(id).style.display = 'none';
-            if (id === 'albumDetailModal') {
-                currentAlbumId = null;
-            }
-        }
-
-        window.onclick = function(event) {
-            if (event.target.classList.contains('modal')) {
-                event.target.style.display = "none";
-                if (event.target.id === 'albumDetailModal') {
-                    currentAlbumId = null;
-                }
-            }
-        }
 
         // --- Existing Settings Logic (Youtube/UI) ---
         

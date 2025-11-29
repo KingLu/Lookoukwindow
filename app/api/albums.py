@@ -1,25 +1,29 @@
 from typing import List, Optional
-from pathlib import Path
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request, Body
 from fastapi.responses import FileResponse
 
 from ..core.config import Config
 from ..core.auth import AuthManager
 from ..services.album_service import AlbumService
+from ..services.library_service import LibraryService
 
 router = APIRouter(prefix="/api/albums", tags=["albums"])
 
 def get_config():
     return Config()
 
-def get_album_service(config: Config = Depends(get_config)):
-    return AlbumService(config)
+def get_library_service(config: Config = Depends(get_config)):
+    return LibraryService(config)
+
+def get_album_service(
+    config: Config = Depends(get_config), 
+    library_service: LibraryService = Depends(get_library_service)
+):
+    return AlbumService(config, library_service)
 
 async def get_current_user(request: Request, config: Config = Depends(get_config)):
-    """获取当前用户"""
     auth_manager = AuthManager(config)
-    is_authenticated = await auth_manager.get_current_user(request)
-    if not is_authenticated:
+    if not await auth_manager.get_current_user(request):
         raise HTTPException(status_code=401, detail="Not authenticated")
     return True
 
@@ -28,7 +32,6 @@ async def list_albums(
     service: AlbumService = Depends(get_album_service),
     user = Depends(get_current_user)
 ):
-    """获取所有相册"""
     return service.list_albums()
 
 @router.post("")
@@ -38,15 +41,12 @@ async def create_album(
     service: AlbumService = Depends(get_album_service),
     user = Depends(get_current_user)
 ):
-    """创建相册"""
     return service.create_album(name, description)
 
 @router.get("/slideshow")
 async def get_slideshow_photos(
     service: AlbumService = Depends(get_album_service)
 ):
-    """获取用于轮播的所有照片"""
-    # 此接口不需要认证，因为前端播放器可能在无会话状态运行
     return service.get_all_active_photos()
 
 @router.get("/{album_id}")
@@ -55,7 +55,6 @@ async def get_album(
     service: AlbumService = Depends(get_album_service),
     user = Depends(get_current_user)
 ):
-    """获取相册详情"""
     album = service.get_album(album_id)
     if not album:
         raise HTTPException(status_code=404, detail="相册不存在")
@@ -70,7 +69,6 @@ async def update_album(
     service: AlbumService = Depends(get_album_service),
     user = Depends(get_current_user)
 ):
-    """更新相册信息（包括激活状态）"""
     result = service.update_album(album_id, name, description, active)
     if not result:
         raise HTTPException(status_code=404, detail="相册不存在")
@@ -82,7 +80,6 @@ async def delete_album(
     service: AlbumService = Depends(get_album_service),
     user = Depends(get_current_user)
 ):
-    """删除相册"""
     service.delete_album(album_id)
     return {"status": "success"}
 
@@ -92,36 +89,67 @@ async def get_album_photos(
     service: AlbumService = Depends(get_album_service),
     user = Depends(get_current_user)
 ):
-    """获取相册内的照片"""
     return service.get_photos(album_id)
+
+@router.post("/{album_id}/photos/add")
+async def add_photos_to_album(
+    album_id: str,
+    photo_ids: List[str] = Body(..., embed=True),
+    service: AlbumService = Depends(get_album_service),
+    user = Depends(get_current_user)
+):
+    """将现有照片添加到相册"""
+    service.add_photos(album_id, photo_ids)
+    return {"status": "success"}
+
+@router.post("/{album_id}/photos/remove")
+async def remove_photos_from_album(
+    album_id: str,
+    photo_ids: List[str] = Body(..., embed=True),
+    service: AlbumService = Depends(get_album_service),
+    user = Depends(get_current_user)
+):
+    """从相册移除照片"""
+    service.remove_photos(album_id, photo_ids)
+    return {"status": "success"}
 
 @router.post("/{album_id}/photos")
 async def upload_photos(
     album_id: str,
     files: List[UploadFile] = File(...),
     service: AlbumService = Depends(get_album_service),
+    library_service: LibraryService = Depends(get_library_service),
     user = Depends(get_current_user)
 ):
-    """上传照片（支持多文件）"""
+    """上传并添加到相册 (快捷方式)"""
     results = []
+    success_ids = []
+    
     for file in files:
         try:
-            result = await service.upload_photo(album_id, file)
-            results.append(result)
+            # 1. 上传到库
+            res = await library_service.upload_photo(file)
+            if res["status"] in ["success", "duplicate"]:
+                photo_data = res["photo"]
+                success_ids.append(photo_data["id"])
+                results.append(res)
+            else:
+                results.append(res)
         except Exception as e:
-            results.append({"error": str(e), "filename": file.filename})
+            results.append({"status": "error", "filename": file.filename, "error": str(e)})
+            
+    # 2. 添加到相册
+    if success_ids:
+        service.add_photos(album_id, success_ids)
+        
     return results
 
-@router.delete("/{album_id}/photos/{filename}")
-async def delete_photo(
-    album_id: str,
-    filename: str,
-    service: AlbumService = Depends(get_album_service),
-    user = Depends(get_current_user)
-):
-    """删除照片"""
-    service.delete_photo(album_id, filename)
-    return {"status": "success"}
+# 兼容旧接口，但这些文件访问接口实际上可以重定向到 library
+# 前端如果还在用 /api/albums/{id}/photos/{file}，需要 AlbumService 知道去哪里找
+# AlbumService.get_photos 返回的 url 字段现在指向 /api/albums/... 还是 /api/library/... ?
+# 在 LibraryService migration 中，我把 url 改成了 /api/library/...
+# 所以前端如果用新的 url，就不会调到这里。
+# 但为了安全起见（如果旧缓存），保留这些接口并代理到 LibraryService
 
 @router.get("/{album_id}/photos/{filename}")
 async def serve_photo(
@@ -129,8 +157,8 @@ async def serve_photo(
     filename: str,
     service: AlbumService = Depends(get_album_service)
 ):
-    """获取照片文件"""
-    path = service.albums_dir / album_id / filename
+    # 实际上现在路径都在 library
+    path = service.config.library_dir / filename
     if not path.exists():
         raise HTTPException(status_code=404, detail="Photo not found")
     return FileResponse(path)
@@ -141,26 +169,9 @@ async def serve_thumbnail(
     filename: str,
     service: AlbumService = Depends(get_album_service)
 ):
-    """获取缩略图"""
-    path = service.thumbnails_dir / album_id / filename
+    path = service.config.thumbnails_dir / filename
     if not path.exists():
-        # 如果缩略图不存在，尝试返回原图
-        path = service.albums_dir / album_id / filename
-        if not path.exists():
-            raise HTTPException(status_code=404, detail="Thumbnail not found")
-    return FileResponse(path)
-
-@router.get("/{album_id}/photos/{filename}/web")
-async def serve_web_photo(
-    album_id: str,
-    filename: str,
-    service: AlbumService = Depends(get_album_service)
-):
-    """获取Web优化图"""
-    path = service.web_images_dir / album_id / filename
+        path = service.config.library_dir / filename
     if not path.exists():
-        # 回退到原图
-        path = service.albums_dir / album_id / filename
-        if not path.exists():
-            raise HTTPException(status_code=404, detail="Photo not found")
+         raise HTTPException(status_code=404, detail="Not found")
     return FileResponse(path)

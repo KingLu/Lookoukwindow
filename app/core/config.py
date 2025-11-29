@@ -136,6 +136,7 @@ class Config:
         self.albums_dir.mkdir(parents=True, exist_ok=True)
         self.thumbnails_dir.mkdir(parents=True, exist_ok=True)
         self.web_images_dir.mkdir(parents=True, exist_ok=True)
+        self.library_dir.mkdir(parents=True, exist_ok=True)
     
     def _ensure_security(self):
         """确保安全配置"""
@@ -236,7 +237,17 @@ class Config:
     def web_images_dir(self) -> Path:
         """获取Web优化图目录 (1080p/720p)"""
         return self.data_dir / "web_images"
-    
+
+    @property
+    def library_dir(self) -> Path:
+        """获取照片库目录（大池子）"""
+        return self.data_dir / "library"
+
+    @property
+    def library_index_path(self) -> Path:
+        """获取照片库索引文件路径"""
+        return self.library_dir / "library.json"
+
     @property
     def session_secret(self) -> str:
         """获取会话密钥"""
