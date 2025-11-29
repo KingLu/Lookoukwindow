@@ -366,6 +366,8 @@
                 channelsList.innerHTML = '';
                 
                 data.channels.forEach(channel => {
+                    const isDefault = channel.name === data.default_channel;
+                    
                     const div = document.createElement('div');
                     div.style.marginBottom = '10px';
                     div.style.background = 'rgba(255,255,255,0.1)';
@@ -375,16 +377,47 @@
                     div.style.justifyContent = 'space-between';
                     div.style.alignItems = 'center';
                     
+                    let actionsHtml = '';
+                    
+                    // 默认频道状态/按钮
+                    if (isDefault) {
+                        actionsHtml += `<span class="status success" style="display:inline-block; margin-right:10px; font-size:12px; padding:2px 6px;">当前默认</span>`;
+                    } else {
+                        actionsHtml += `<button onclick="setDefaultChannel('${channel.name}')" style="background:#3498db; margin-right:10px; padding:4px 8px; font-size:12px;">设为默认</button>`;
+                    }
+
+                    // 删除按钮 (预设频道不可删除)
+                    const isPreset = ['NASA TV', 'ISS Live', 'NASA Live'].includes(channel.name);
+                    if (!isPreset) {
+                        actionsHtml += `<button onclick="deleteChannel('${channel.name}')" style="background:#e74c3c; margin:0; padding:4px 8px; font-size:12px;">删除</button>`;
+                    } else {
+                        actionsHtml += `<span style="font-size:12px;color:#999">预设</span>`;
+                    }
+                    
                     div.innerHTML = `
-                        <span>${channel.name}</span>
-                        ${channel.name !== 'NASA TV' && channel.name !== 'ISS Live' && channel.name !== 'NASA Live' ? 
-                            `<button onclick="deleteChannel('${channel.name}')" style="background:#e74c3c;margin:0;padding:4px 8px;">删除</button>` : 
-                            '<span style="font-size:12px;color:#999">预设</span>'}
+                        <span style="font-weight: ${isDefault ? 'bold' : 'normal'}">${channel.name}</span>
+                        <div>${actionsHtml}</div>
                     `;
                     channelsList.appendChild(div);
                 });
             } catch (error) {
                 console.error('加载频道失败:', error);
+            }
+        }
+
+        async function setDefaultChannel(name) {
+            try {
+                const res = await fetch(`${API_BASE}/youtube/default?channel_name=${encodeURIComponent(name)}`, {
+                    method: 'POST'
+                });
+                if (res.ok) {
+                    showStatus(`已切换默认频道为: ${name}`, 'success');
+                    loadChannels(); // 重新加载列表以更新状态
+                } else {
+                    showStatus('设置失败', 'error');
+                }
+            } catch (e) {
+                showStatus('设置失败', 'error');
             }
         }
 
