@@ -384,6 +384,14 @@
         pointer-events: none; /* 让点击穿透 */
     }
     
+    .meta-icon-img {
+        width: 18px;
+        height: 18px;
+        vertical-align: text-bottom;
+        margin-right: 6px;
+        opacity: 0.9;
+    }
+
     .photo-nav {
         position: absolute;
         top: 50%;
@@ -931,7 +939,7 @@
         } catch(e) { console.error("时间解析错误", e); }
         
         if (timeStr) {
-             secondaryHtml += `<div class="meta-item"><span class="meta-icon">📅</span> ${timeStr}</div>`;
+             secondaryHtml += `<div class="meta-item"><img src="/static/icons/calendar.svg" class="meta-icon-img"> ${timeStr}</div>`;
         }
         
         // 设备
@@ -945,7 +953,7 @@
                     device = `${make} ${model}`;
                 }
                 if (device) {
-                    secondaryHtml += `<div class="meta-item"><span class="meta-icon">📷</span> ${device}</div>`;
+                    secondaryHtml += `<div class="meta-item"><img src="/static/icons/camera.svg" class="meta-icon-img"> ${device}</div>`;
                 }
             }
         } catch(e) { console.error("设备信息解析错误", e); }
@@ -953,15 +961,15 @@
         // 地点
         try {
             if (photo.location_name) {
-                 secondaryHtml += `<div class="meta-item"><span class="meta-icon">📍</span> ${photo.location_name}</div>`;
+                 secondaryHtml += `<div class="meta-item"><img src="/static/icons/location.svg" class="meta-icon-img"> ${photo.location_name}</div>`;
             } else if (photo.has_location) {
-                 secondaryHtml += `<div class="meta-item"><span class="meta-icon">📍</span> ${photo.location && photo.location.lat ? '包含位置信息' : '包含位置信息'}</div>`;
+                 secondaryHtml += `<div class="meta-item"><img src="/static/icons/location.svg" class="meta-icon-img"> ${photo.location && photo.location.lat ? '包含位置信息' : '包含位置信息'}</div>`;
             }
         } catch(e) { console.error("位置信息解析错误", e); }
 
         const html = `
             <div class="meta-primary">
-                <span class="meta-icon">📁</span> ${primaryText}
+                <img src="/static/icons/folder.svg" class="meta-icon-img"> ${primaryText}
             </div>
             <div class="meta-secondary">
                 ${secondaryHtml}
