@@ -405,6 +405,39 @@
     .hidden { display: none !important; }
     
     .error { color: #ff4444; padding: 20px; text-align: center; }
+
+    /* Transitions */
+    .photo-wrapper {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        display: flex; align-items: center; justify-content: center;
+        background: #000;
+        opacity: 0;
+        transition: opacity 1s ease;
+        z-index: 1;
+    }
+    .photo-wrapper.active { opacity: 1; z-index: 10; }
+    .photo-wrapper.exit { opacity: 0; z-index: 5; }
+    
+    /* Fade (Default) */
+    .effect-fade.enter { opacity: 0; }
+    .effect-fade.active { opacity: 1; transition: opacity 1s; }
+    .effect-fade.exit { opacity: 0; transition: opacity 1s; }
+
+    /* Slide Left */
+    .effect-slide-left.enter { transform: translateX(100%); opacity: 1; }
+    .effect-slide-left.active { transform: translateX(0); opacity: 1; transition: transform 1s ease-in-out; }
+    .effect-slide-left.exit { transform: translateX(-100%); opacity: 1; transition: transform 1s ease-in-out; }
+
+    /* Zoom */
+    .effect-zoom.enter { transform: scale(1.2); opacity: 0; }
+    .effect-zoom.active { transform: scale(1); opacity: 1; transition: all 1.2s ease; }
+    .effect-zoom.exit { transform: scale(0.8); opacity: 0; transition: all 1.2s ease; }
+
+    /* Push Up */
+    .effect-push.enter { transform: translateY(100%); opacity: 1; }
+    .effect-push.active { transform: translateY(0); opacity: 1; transition: transform 1s ease; }
+    .effect-push.exit { transform: translateY(-100%); opacity: 1; transition: transform 1s ease; }
+
 </style>
 {% endblock %}
 
@@ -721,6 +754,10 @@
     const slideshowDelay = ({{ slideshow_interval_seconds|default(10) }}) * 1000;
     const showMetadata = {{ 'true' if show_metadata else 'false' }};
     const slideshowTransition = '{{ slideshow_transition|default("fade") }}';
+    
+    // 支持的切换效果列表
+    const transitions = ['fade', 'slide', 'zoom', 'flip', 'cube'];
+    let currentTransitionIndex = 0;
 
     async function loadYouTubeChannel(channelName) {
         try {
@@ -781,7 +818,13 @@
              contentHtml = `<video src="${photo.url}" class="photo-video" autoplay muted loop playsinline style="max-width:100%;max-height:100%;"></video>`;
         } else {
              // 优先使用 Web 优化图
-             const src = photo.web_url || photo.url;
+             let src = photo.web_url || photo.url;
+             // 添加 cache buster
+             const ts = photo.updated_at ? new Date(photo.updated_at).getTime() : (photo.created_at ? new Date(photo.created_at).getTime() : '');
+             if (ts) {
+                 src += (src.includes('?') ? '&' : '?') + `v=${ts}`;
+             }
+             
              contentHtml = `<img src="${src}" class="photo-image" loading="eager">`;
         }
         wrapper.innerHTML = contentHtml;
@@ -791,15 +834,24 @@
         // 强制重绘以触发 transition
         wrapper.offsetHeight; 
         
+        // 随机应用一种切换效果（如果配置允许，这里简单演示随机）
+        // 实际可以通过 class 来控制不同的 CSS 动画
+        // 假设我们有 .transition-fade, .transition-slide, .transition-zoom ...
+        const effects = ['effect-fade', 'effect-slide-left', 'effect-zoom', 'effect-push'];
+        const effect = effects[Math.floor(Math.random() * effects.length)];
+        wrapper.classList.add(effect);
+        
         // 处理旧的 active 元素
         const oldActive = stage.querySelector('.photo-wrapper.active');
         if (oldActive) {
             oldActive.classList.remove('active');
             oldActive.classList.add('exit');
+            oldActive.classList.add(effect); // 确保退出动画匹配
+            
             // 动画结束后移除
             setTimeout(() => {
                 if(oldActive.parentNode === stage) stage.removeChild(oldActive);
-            }, 1000); // 匹配 CSS duration
+            }, 1500); // 匹配 CSS duration
         }
         
         // 激活新元素
@@ -819,7 +871,13 @@
         const nextPhoto = photos[nextIndex];
         
         if (nextPhoto.type !== 'video' && (!nextPhoto.filename || !nextPhoto.filename.match(/\.(mp4|mov)$/i))) {
-            const src = nextPhoto.web_url || nextPhoto.url;
+            let src = nextPhoto.web_url || nextPhoto.url;
+            // 添加 cache buster
+            const ts = nextPhoto.updated_at ? new Date(nextPhoto.updated_at).getTime() : (nextPhoto.created_at ? new Date(nextPhoto.created_at).getTime() : '');
+            if (ts) {
+                src += (src.includes('?') ? '&' : '?') + `v=${ts}`;
+            }
+            
             const img = new Image();
             img.src = src;
         }
