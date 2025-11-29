@@ -187,7 +187,10 @@
                 <div class="picker-grid" id="pickerGrid"></div>
             </div>
             <div class="picker-footer">
-                <span id="selectedCount" style="margin-right: auto; align-self: center; color: #888;">已选: 0</span>
+                <div style="margin-right: auto; align-self: center; display: flex; align-items: center; gap: 10px;">
+                    <span id="selectedCount" style="color: #888;">已选: 0</span>
+                    <button class="btn" style="background: #444; font-size: 12px; padding: 4px 8px;" onclick="selectAllInPicker()">全选</button>
+                </div>
                 <button class="btn" style="background:#444;" onclick="closePicker()">取消</button>
                 <button class="btn" onclick="confirmAdd()">添加选中</button>
             </div>
@@ -325,6 +328,7 @@
             libraryPhotos.forEach(p => {
                 const el = document.createElement('div');
                 el.className = `picker-item ${pickerSelected.has(p.id) ? 'selected' : ''}`;
+                el.dataset.id = p.id; // Store ID for bulk selection
                 const url = p.thumbnail_url || p.url;
                 el.innerHTML = `
                     <img src="${url}" loading="lazy">
@@ -338,6 +342,17 @@
                 };
                 grid.appendChild(el);
             });
+        }
+
+        function selectAllInPicker() {
+            const allSelected = libraryPhotos.length > 0 && pickerSelected.size === libraryPhotos.length;
+            
+            if (allSelected) {
+                pickerSelected.clear();
+            } else {
+                libraryPhotos.forEach(p => pickerSelected.add(p.id));
+            }
+            renderPicker();
         }
 
         async function confirmAdd() {
