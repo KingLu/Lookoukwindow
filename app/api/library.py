@@ -1,5 +1,5 @@
 from typing import List, Dict, Optional
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request, Body
 from fastapi.responses import FileResponse
 
 from ..core.config import Config
@@ -65,6 +65,19 @@ async def update_photo(
         raise HTTPException(status_code=404, detail="照片不存在")
     return result
 
+@router.post("/photos/{photo_id}/rotate")
+async def rotate_photo(
+    photo_id: str,
+    degree: int = Body(..., embed=True),
+    service: LibraryService = Depends(get_library_service),
+    user = Depends(get_current_user)
+):
+    """旋转照片"""
+    result = service.rotate_photo(photo_id, degree)
+    if not result:
+        raise HTTPException(status_code=404, detail="照片不存在或无法旋转")
+    return {"status": "success"}
+
 @router.delete("/photos/{photo_id}")
 async def delete_photo(
     photo_id: str,
@@ -108,4 +121,3 @@ async def serve_web(
     if not path.exists():
         raise HTTPException(status_code=404, detail="Not found")
     return FileResponse(path)
-

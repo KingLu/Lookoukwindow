@@ -124,6 +124,36 @@ class LibraryService:
                 return p
         return None
 
+    def rotate_photo(self, photo_id: str, degree: int) -> bool:
+        """旋转照片"""
+        photo = self.get_photo(photo_id)
+        if not photo or photo["type"] != "image": return False
+        
+        filename = photo["filename"]
+        file_path = self.library_dir / filename
+        
+        try:
+            # 旋转原图
+            with Image.open(file_path) as img:
+                # 负数是顺时针，Pillow rotate 正数是逆时针
+                # 前端传 90 (顺时针) -> Pillow rotate(-90)
+                rotated = img.rotate(-degree, expand=True)
+                rotated.save(file_path, quality=95)
+            
+            # 重新生成衍生图
+            self._generate_derivatives(file_path, photo_id)
+            
+            # 更新 Hash? 理论上内容变了Hash也变了，但为了性能暂时不重新计算Hash?
+            # 最好还是更新，否则会导致查重失效
+            with open(file_path, "rb") as f:
+                new_hash = hashlib.sha256(f.read()).hexdigest()
+            
+            self.update_photo(photo_id, {"hash": new_hash})
+            return True
+        except Exception as e:
+            logger.error(f"旋转失败: {e}")
+            return False
+
     def delete_photo(self, photo_id: str):
         """删除照片"""
         photo = self.get_photo(photo_id)
@@ -323,4 +353,3 @@ class LibraryService:
         
         self._save_index()
         logger.info(f"迁移完成，共迁移 {len(self._library_index)} 张照片")
-
