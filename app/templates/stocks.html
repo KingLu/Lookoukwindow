@@ -1,0 +1,485 @@
+{% extends "base.html" %}
+
+{% block title %}股票配置 - Lookoukwindow{% endblock %}
+
+{% block content %}
+<div class="settings-container">
+    <div class="settings-header">
+        <h1>金融数据配置</h1>
+        <div class="header-actions">
+            <a href="/settings" class="btn btn-secondary">返回设置</a>
+        </div>
+    </div>
+
+    <!-- 1. 股票管理 (原功能) -->
+    <div class="settings-section">
+        <div class="section-header">
+            <h2>股票投资组合 (自选股)</h2>
+            <button class="btn btn-primary" onclick="showAddModal('stock')">+ 添加股票</button>
+        </div>
+        <div class="section-description">
+            <p>管理您的投资组合和观察列表。设定目标价格以辅助投资决策。</p>
+        </div>
+
+        <div class="table-responsive">
+            <table class="settings-table" id="stocks-table">
+                <thead>
+                    <tr>
+                        <th>代码</th>
+                        <th>名称</th>
+                        <th>类型</th>
+                        <th>目标买入</th>
+                        <th>目标卖出</th>
+                        <th>持仓/成本</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- 动态加载 -->
+                    <tr><td colspan="7" class="text-center">加载中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 2. 指数管理 (新功能) -->
+    <div class="settings-section" style="margin-top: 40px;">
+        <div class="section-header">
+            <h2>大盘指数 (跑马灯)</h2>
+            <button class="btn btn-primary" onclick="showAddModal('index')">+ 添加指数</button>
+        </div>
+        <div class="section-description">
+            <p>配置首页底部滚动的市场指数 (Indices Ticker)。</p>
+        </div>
+
+        <div class="table-responsive">
+            <table class="settings-table" id="indices-table">
+                <thead>
+                    <tr>
+                        <th>代码 (Symbol)</th>
+                        <th>显示名称</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- 动态加载 -->
+                    <tr><td colspan="3" class="text-center">加载中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 股票 编辑/添加 弹窗 -->
+<div id="stock-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="stock-modal-title">添加股票</h2>
+            <span class="close" onclick="closeModal('stock')">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="stock-form">
+                <div class="form-group">
+                    <label>股票代码 (Symbol)</label>
+                    <input type="text" name="symbol" placeholder="e.g. 000001.SS, AAPL" required>
+                    <small class="help-text">A股: .SS/.SZ, 港股: .HK, 美股: 直接代码</small>
+                </div>
+                <div class="form-group">
+                    <label>显示名称</label>
+                    <input type="text" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label>类型</label>
+                    <select name="type" onchange="toggleHoldingFields()">
+                        <option value="watching">👀 观察 (Watching)</option>
+                        <option value="holding">💰 持仓 (Holding)</option>
+                    </select>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label>目标买入价 (安全边际)</label>
+                        <input type="number" step="0.01" name="target_buy_price">
+                    </div>
+                    <div class="form-group half">
+                        <label>目标卖出价 (止盈位)</label>
+                        <input type="number" step="0.01" name="target_sell_price">
+                    </div>
+                </div>
+
+                <div id="holding-fields" style="display:none;">
+                    <div class="form-row">
+                        <div class="form-group half">
+                            <label>持仓成本</label>
+                            <input type="number" step="0.01" name="cost_price">
+                        </div>
+                        <div class="form-group half">
+                            <label>持仓数量</label>
+                            <input type="number" step="1" name="shares">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('stock')">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 指数 添加 弹窗 (简单版，只增删不改) -->
+<div id="index-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>添加指数</h2>
+            <span class="close" onclick="closeModal('index')">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="index-form">
+                <div class="form-group">
+                    <label>指数代码 (Symbol)</label>
+                    <input type="text" name="symbol" placeholder="e.g. ^IXIC, 000001.SS" required>
+                    <small class="help-text">常用: ^IXIC(纳指), ^DJI(道指), 000001.SS(上证), GC=F(黄金)</small>
+                </div>
+                <div class="form-group">
+                    <label>显示名称</label>
+                    <input type="text" name="name" required>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('index')">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .settings-container {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 30px 20px;
+        color: #fff;
+    }
+    
+    .settings-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        padding-bottom: 20px;
+    }
+    
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+
+    .section-description {
+        color: #aaa;
+        margin-bottom: 20px;
+    }
+
+    .settings-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: rgba(255,255,255,0.05);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .settings-table th, .settings-table td {
+        padding: 15px;
+        text-align: left;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .settings-table th {
+        background: rgba(0,0,0,0.2);
+        font-weight: 600;
+        color: #ccc;
+    }
+
+    .settings-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .tag {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.8em;
+        font-weight: bold;
+    }
+    .tag.watching { background: #3498db; color: #fff; }
+    .tag.holding { background: #e67e22; color: #fff; }
+
+    .btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        text-decoration: none;
+        display: inline-block;
+    }
+    .btn-primary { background: #3498db; color: white; }
+    .btn-secondary { background: #444; color: #ddd; }
+    .btn-danger { background: #e74c3c; color: white; }
+    .btn-sm { padding: 4px 8px; font-size: 0.8rem; margin-right: 5px; }
+
+    /* Modal */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.7);
+    }
+
+    .modal-content {
+        background-color: #222;
+        margin: 10% auto;
+        padding: 0;
+        width: 500px;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        animation: slideDown 0.3s ease;
+    }
+
+    @keyframes slideDown {
+        from { transform: translateY(-50px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+
+    .modal-header {
+        padding: 15px 20px;
+        border-bottom: 1px solid #333;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-body { padding: 20px; }
+    .modal-footer { padding-top: 20px; display: flex; justify-content: flex-end; gap: 10px; }
+
+    .close { color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer; }
+    .close:hover { color: #fff; }
+
+    .form-group { margin-bottom: 15px; }
+    .form-row { display: flex; gap: 15px; }
+    .form-group.half { flex: 1; }
+    
+    label { display: block; margin-bottom: 5px; color: #ccc; }
+    input, select {
+        width: 100%;
+        padding: 8px;
+        background: #333;
+        border: 1px solid #444;
+        color: #fff;
+        border-radius: 4px;
+    }
+    input:focus { border-color: #3498db; outline: none; }
+    
+    .help-text { display: block; font-size: 0.8em; color: #666; margin-top: 4px; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const API_BASE = '/api/finance';
+    let isStockEditing = false;
+
+    // --- Stock Logic ---
+    async function loadStocks() {
+        try {
+            const res = await fetch(`${API_BASE}/config`);
+            const stocks = await res.json();
+            renderStockTable(stocks);
+        } catch(e) {
+            console.error('加载股票失败', e);
+        }
+    }
+
+    function renderStockTable(stocks) {
+        const tbody = document.querySelector('#stocks-table tbody');
+        if (!Array.isArray(stocks) || stocks.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center">暂无数据</td></tr>';
+            return;
+        }
+        tbody.innerHTML = stocks.map(s => `
+            <tr>
+                <td>${s.symbol}</td>
+                <td>${s.name}</td>
+                <td>
+                    <span class="tag ${s.type}">
+                        ${s.type === 'holding' ? '持仓' : '观察'}
+                    </span>
+                </td>
+                <td>${s.target_buy_price || '-'}</td>
+                <td>${s.target_sell_price || '-'}</td>
+                <td>
+                    ${s.type === 'holding' 
+                        ? `成本: ${s.cost_price}<br>股数: ${s.shares}` 
+                        : '-'}
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-secondary" onclick='editStock(${JSON.stringify(s)})'>编辑</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteStock('${s.symbol}')">删除</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    // --- Index Logic ---
+    async function loadIndices() {
+        try {
+            const res = await fetch(`${API_BASE}/indices/config`);
+            const indices = await res.json();
+            renderIndexTable(indices);
+        } catch(e) {
+            console.error('加载指数失败', e);
+        }
+    }
+
+    function renderIndexTable(indices) {
+        const tbody = document.querySelector('#indices-table tbody');
+        if (!Array.isArray(indices) || indices.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" class="text-center">暂无数据</td></tr>';
+            return;
+        }
+        tbody.innerHTML = indices.map(i => `
+            <tr>
+                <td>${i.symbol}</td>
+                <td>${i.name}</td>
+                <td>
+                    <button class="btn btn-sm btn-danger" onclick="deleteIndex('${i.symbol}')">删除</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    // --- Modal & Form Logic ---
+
+    function showAddModal(type) {
+        if (type === 'stock') {
+            isStockEditing = false;
+            document.getElementById('stock-modal-title').innerText = '添加股票';
+            document.getElementById('stock-form').reset();
+            document.querySelector('input[name="symbol"]').readOnly = false;
+            toggleHoldingFields();
+            document.getElementById('stock-modal').style.display = 'block';
+        } else {
+            document.getElementById('index-form').reset();
+            document.getElementById('index-modal').style.display = 'block';
+        }
+    }
+
+    function editStock(stock) {
+        isStockEditing = true;
+        document.getElementById('stock-modal-title').innerText = '编辑股票';
+        const form = document.getElementById('stock-form');
+        
+        form.symbol.value = stock.symbol;
+        form.symbol.readOnly = true;
+        form.name.value = stock.name;
+        form.type.value = stock.type;
+        form.target_buy_price.value = stock.target_buy_price;
+        form.target_sell_price.value = stock.target_sell_price;
+        form.cost_price.value = stock.cost_price;
+        form.shares.value = stock.shares;
+        
+        toggleHoldingFields();
+        document.getElementById('stock-modal').style.display = 'block';
+    }
+
+    function closeModal(type) {
+        document.getElementById(`${type}-modal`).style.display = 'none';
+    }
+
+    function toggleHoldingFields() {
+        const type = document.querySelector('select[name="type"]').value;
+        document.getElementById('holding-fields').style.display = type === 'holding' ? 'block' : 'none';
+    }
+
+    // --- API Calls ---
+
+    async function deleteStock(symbol) {
+        if (!confirm('确定要删除该股票吗？')) return;
+        try {
+            await fetch(`${API_BASE}/config/${symbol}`, { method: 'DELETE' });
+            loadStocks();
+        } catch(e) { alert('删除失败'); }
+    }
+
+    async function deleteIndex(symbol) {
+        if (!confirm('确定要删除该指数吗？')) return;
+        try {
+            await fetch(`${API_BASE}/indices/config/${symbol}`, { method: 'DELETE' });
+            loadIndices();
+        } catch(e) { alert('删除失败'); }
+    }
+
+    document.getElementById('stock-form').onsubmit = async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData.entries());
+        
+        data.target_buy_price = parseFloat(data.target_buy_price) || 0;
+        data.target_sell_price = parseFloat(data.target_sell_price) || 0;
+        data.cost_price = parseFloat(data.cost_price) || 0;
+        data.shares = parseInt(data.shares) || 0;
+
+        try {
+            const url = isStockEditing ? `${API_BASE}/config/${data.symbol}` : `${API_BASE}/config`;
+            const method = isStockEditing ? 'PUT' : 'POST';
+            
+            const res = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            if (!res.ok) throw await res.text();
+            closeModal('stock');
+            loadStocks();
+        } catch(err) { alert('保存失败: ' + err); }
+    };
+
+    document.getElementById('index-form').onsubmit = async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData.entries());
+
+        try {
+            const res = await fetch(`${API_BASE}/indices/config`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            if (!res.ok) throw await res.text();
+            closeModal('index');
+            loadIndices();
+        } catch(err) { alert('保存失败: ' + err); }
+    };
+
+    // Close modal when clicking outside
+    window.onclick = function(event) {
+        if (event.target == document.getElementById('stock-modal')) closeModal('stock');
+        if (event.target == document.getElementById('index-modal')) closeModal('index');
+    }
+
+    loadStocks();
+    loadIndices();
+</script>
+{% endblock %}

@@ -195,6 +195,10 @@ async def albums_page(request: Request):
     """相册管理"""
     return templates.TemplateResponse("albums.html", {"request": request})
 
+@app.get("/admin/stocks", response_class=HTMLResponse)
+async def stocks_page(request: Request):
+    """股票配置"""
+    return templates.TemplateResponse("stocks.html", {"request": request})
 
 @app.get("/health")
 async def health():
