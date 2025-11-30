@@ -130,6 +130,8 @@ if [[ "$BROWSER" == *"chromium"* ]]; then
         --disable-infobars \
         --kiosk \
         --incognito \
+        --password-store=basic \
+        --autoplay-policy=no-user-gesture-required \
         --check-for-update-interval=31536000 \
         --disable-restore-session-state \
         --disable-translate \
