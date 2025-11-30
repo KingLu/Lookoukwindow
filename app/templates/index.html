@@ -245,43 +245,43 @@
 
     /* Bottom Finance - Value Investing Style */
     .dashboard-bottom-finance {
-        flex: 0 0 30%; /* 减少高度占比 */
-        min-height: 200px; 
+        flex: 0 0 28%; /* 稍微减少高度占比 */
+        min-height: 160px; /* 降低最小高度 */
         background: linear-gradient(to top, rgba(30,30,30,0.95), rgba(10,10,10,0.9));
         border-top: 1px solid rgba(255,255,255,0.1);
-        padding: 10px 0; 
-        display: flex; flex-direction: column; gap: 5px;
+        padding: 5px 0; /* 减少内边距 */
+        display: flex; flex-direction: column; gap: 2px;
         overflow: hidden;
     }
 
     /* Indices Ticker */
     .indices-ticker {
-        width: 100%; overflow: hidden; position: relative; padding: 0 20px;
+        width: 100%; overflow: hidden; position: relative; padding: 0 15px;
         mask-image: linear-gradient(to right, transparent, black 2%, black 98%, transparent);
         -webkit-mask-image: linear-gradient(to right, transparent, black 2%, black 98%, transparent);
-        margin-bottom: 5px; flex: 0 0 auto;
+        margin-bottom: 2px; flex: 0 0 auto;
     }
-    .indices-track { display: flex; gap: 20px; width: max-content; animation: marquee 30s linear infinite; }
+    .indices-track { display: flex; gap: 15px; width: max-content; animation: marquee 30s linear infinite; }
     .indices-track:hover { animation-play-state: paused; }
     @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
     .index-card {
-        background: rgba(255,255,255,0.08); padding: 6px 10px; border-radius: 6px;
-        min-width: 120px; display: flex; flex-direction: column; justify-content: center; flex-shrink: 0; 
+        background: rgba(255,255,255,0.08); padding: 4px 8px; border-radius: 4px;
+        min-width: 100px; display: flex; flex-direction: column; justify-content: center; flex-shrink: 0; 
     }
-    .index-name { font-size: 0.75rem; color: #aaa; margin-bottom: 2px; white-space: nowrap; }
-    .index-price { font-size: 1.0rem; font-weight: bold; }
-    .index-change { font-size: 0.85rem; }
+    .index-name { font-size: 0.7rem; color: #aaa; margin-bottom: 1px; white-space: nowrap; }
+    .index-price { font-size: 0.9rem; font-weight: bold; }
+    .index-change { font-size: 0.75rem; }
     .up { color: #e74c3c; }
     .down { color: #2ecc71; }
 
     /* Stock Carousel - Value Investing Layout (Compact) */
     .stock-carousel {
         flex: 1;
-        display: flex; gap: 15px;
+        display: flex; gap: 10px;
         background: rgba(0,0,0,0.3);
         border-radius: 8px;
-        padding: 10px 15px;
-        margin: 0 20px 5px 20px; 
+        padding: 5px 10px; /* 更紧凑的内边距 */
+        margin: 0 15px 5px 15px; 
         align-items: stretch; overflow: hidden;
         position: relative; transition: box-shadow 0.5s ease;
     }
@@ -301,16 +301,16 @@
     /* Row 1: Header */
     .stock-row-header {
         display: flex; justify-content: space-between; align-items: flex-start;
-        margin-bottom: 2px;
+        margin-bottom: 0;
     }
-    .stock-name-wrapper { display: flex; align-items: center; gap: 8px; }
-    .stock-name { font-size: 1.3rem; font-weight: bold; color: #fff; line-height: 1.1; }
+    .stock-name-wrapper { display: flex; align-items: center; gap: 5px; }
+    .stock-name { font-size: 1.1rem; font-weight: bold; color: #fff; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
     .stock-badge { 
-        display: inline-block; font-size: 0.65rem; padding: 1px 5px; border-radius: 3px; 
+        display: inline-block; font-size: 0.6rem; padding: 0 4px; border-radius: 3px; height: 16px; line-height: 16px;
     }
     .badge-holding { background: rgba(230, 126, 34, 0.3); color: #e67e22; border: 1px solid rgba(230, 126, 34, 0.5); }
     .badge-watching { background: rgba(52, 152, 219, 0.3); color: #3498db; border: 1px solid rgba(52, 152, 219, 0.5); }
-    .stock-change { font-size: 0.9rem; }
+    .stock-change { font-size: 0.8rem; }
 
     /* Row 2: Main Data (Symbol | Price | Target) */
     .stock-row-main {
@@ -318,56 +318,56 @@
         align-items: baseline; /* 基线对齐 */
         justify-content: space-between;
         border-bottom: 1px solid rgba(255,255,255,0.1);
-        padding-bottom: 5px;
-        margin-bottom: 5px;
+        padding-bottom: 2px;
+        margin-bottom: 2px;
     }
-    .col-symbol { color: #888; font-size: 0.85rem; font-family: monospace; flex: 0 0 auto; }
-    .col-price { font-size: 1.8rem; font-weight: 700; line-height: 1; flex: 1; text-align: center; }
+    .col-symbol { color: #888; font-size: 0.75rem; font-family: monospace; flex: 0 0 auto; }
+    .col-price { font-size: 1.5rem; font-weight: 700; line-height: 1; flex: 1; text-align: center; }
     .col-target { text-align: right; flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; }
     
     .target-val-group { display: flex; flex-direction: column; align-items: flex-end; }
-    .target-val { font-size: 1.1rem; font-weight: 600; color: #eee; line-height: 1.1; }
-    .target-diff { font-size: 0.75rem; }
+    .target-val { font-size: 1.0rem; font-weight: 600; color: #eee; line-height: 1; }
+    .target-diff { font-size: 0.7rem; }
 
-    .label-mini { font-size: 0.65rem; color: #aaa; }
+    .label-mini { font-size: 0.6rem; color: #aaa; }
 
     /* Row 3: Holding (Conditional) */
     .stock-row-holding {
         display: flex; justify-content: space-between; align-items: center;
         background: rgba(255,255,255,0.05);
-        padding: 4px 8px;
-        border-radius: 4px;
-        margin-bottom: 5px;
+        padding: 2px 6px;
+        border-radius: 3px;
+        margin-bottom: 2px;
     }
 
     /* Row 4: Extra Grid */
     .stock-grid-extra {
-        display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px;
-        font-size: 0.7rem; color: #aaa; 
-        margin-bottom: 5px; 
+        display: grid; grid-template-columns: 1fr 1fr; gap: 1px 5px;
+        font-size: 0.65rem; color: #aaa; 
+        margin-bottom: 2px; 
     }
     .stock-grid-extra > div span { color: #ddd; }
 
     /* Gauge */
     .price-gauge-container { margin-top: auto; padding-top: 2px; }
-    .gauge-label-row { display: flex; justify-content: space-between; font-size: 0.65rem; margin-top: 2px; }
-    .gauge-track { height: 6px; background: #333; border-radius: 3px; position: relative; }
+    .gauge-label-row { display: flex; justify-content: space-between; font-size: 0.6rem; margin-top: 1px; }
+    .gauge-track { height: 4px; background: #333; border-radius: 2px; position: relative; }
     .gauge-bar {
-        position: absolute; left: 0; top: 0; bottom: 0; right: 0; border-radius: 3px;
+        position: absolute; left: 0; top: 0; bottom: 0; right: 0; border-radius: 2px;
         background: linear-gradient(90deg, rgba(46,204,113,0.3) 0%, rgba(46,204,113,0.1) 30%, rgba(231,76,60,0.1) 70%, rgba(231,76,60,0.3) 100%);
     }
-    .gauge-marker { position: absolute; top: -2px; bottom: -2px; width: 2px; z-index: 2; }
+    .gauge-marker { position: absolute; top: -1px; bottom: -1px; width: 2px; z-index: 2; }
     .gauge-marker.buy { background: #2ecc71; }
     .gauge-marker.sell { background: #e74c3c; }
     .gauge-cursor {
-        position: absolute; top: -3px; bottom: -3px; width: 3px; background: #fff;
-        box-shadow: 0 0 4px rgba(255,255,255,0.8); z-index: 3; border-radius: 1px; transition: left 0.5s ease;
+        position: absolute; top: -2px; bottom: -2px; width: 3px; background: #fff;
+        box-shadow: 0 0 3px rgba(255,255,255,0.8); z-index: 3; border-radius: 1px; transition: left 0.5s ease;
     }
     
     /* Chart Styles */
     .stock-chart-panel { flex: 1; display: flex; min-width: 0; }
-    .chart-box { flex: 1; position: relative; background: rgba(255,255,255,0.03); border-radius: 4px; padding: 5px; min-width: 0; }
-    .chart-label { position: absolute; top: 5px; left: 8px; font-size: 9px; color: #888; pointer-events: none; z-index: 1; }
+    .chart-box { flex: 1; position: relative; background: rgba(255,255,255,0.03); border-radius: 4px; padding: 2px; min-width: 0; }
+    .chart-label { position: absolute; top: 3px; left: 5px; font-size: 8px; color: #888; pointer-events: none; z-index: 1; }
 
     /* Photo Styles ... unchanged ... */
     /* ... (copy existing photo styles) ... */
@@ -782,7 +782,7 @@
             if (iframe && data.embed_url) {
                 const urlObj = new URL(data.embed_url);
                 urlObj.searchParams.set('autoplay', '1');
-                urlObj.searchParams.set('mute', '0');
+                urlObj.searchParams.set('mute', '1');
                 urlObj.searchParams.delete('enablejsapi');
                 iframe.src = urlObj.toString();
                 iframe.style.display = 'block';
