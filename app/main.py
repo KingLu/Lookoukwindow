@@ -1,5 +1,6 @@
 """FastAPI 主应用"""
 import logging
+import logging.handlers
 import sys
 from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -14,13 +15,29 @@ from .core.auth import AuthManager
 from .api import auth, youtube, settings, albums, finance, library
 
 # 配置日志
+log_dir = Path(__file__).parent.parent / "log"
+log_dir.mkdir(exist_ok=True)
+
+log_file = log_dir / "app.log"
+file_handler = logging.handlers.TimedRotatingFileHandler(
+    filename=str(log_file),
+    when="midnight",
+    interval=1,
+    backupCount=30,
+    encoding="utf-8"
+)
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.StreamHandler(sys.stdout)
+        logging.StreamHandler(sys.stdout),
+        file_handler
     ]
 )
+
+# 记录启动日志
+logging.getLogger("app").info(f"Application starting. Logs directory: {log_dir.absolute()}")
 
 # 设置应用相关模块的日志级别
 logging.getLogger("app").setLevel(logging.DEBUG)
