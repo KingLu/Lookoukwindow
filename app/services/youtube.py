@@ -1,7 +1,11 @@
 """YouTube 直播服务"""
 import re
+import logging
 from typing import Dict, List, Optional
 import httpx
+
+logger = logging.getLogger(__name__)
+
 
 
 class YouTubeService:
@@ -67,15 +71,18 @@ class YouTubeService:
         # 验证URL
         video_id = YouTubeService.extract_video_id(url)
         if not video_id:
+            logger.warning(f"Invalid YouTube URL provided for custom channel '{name}': {url}")
             return False
         
         # 检查是否已存在
         custom_channels = config.get('youtube', {}).get('custom_channels', [])
         for channel in custom_channels:
             if channel.get('name') == name:
+                logger.info(f"Updating existing custom channel: {name}")
                 channel['url'] = YouTubeService.normalize_url(url)
                 return True
         
+        logger.info(f"Adding new custom channel: {name}")
         # 添加新频道
         custom_channels.append({
             'name': name,
@@ -92,6 +99,7 @@ class YouTubeService:
     @staticmethod
     def remove_custom_channel(name: str, config: Dict) -> bool:
         """删除自定义频道"""
+        logger.info(f"Removing custom channel: {name}")
         custom_channels = config.get('youtube', {}).get('custom_channels', [])
         original_len = len(custom_channels)
         custom_channels[:] = [ch for ch in custom_channels if ch.get('name') != name]
