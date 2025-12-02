@@ -199,13 +199,23 @@ async def get_stock(
         earnings_date_str = None
         try:
             cal = ticker.calendar
-            if cal is not None and not cal.empty:
-                if 'Earnings Date' in cal:
-                     dates = cal['Earnings Date']
-                     if len(dates) > 0:
-                         earnings_date_str = str(dates[0].date())
-                elif not cal.empty:
-                     pass
+            if cal is not None:
+                # 1. 处理 DataFrame (具有 empty 属性)
+                if hasattr(cal, 'empty'):
+                    if not cal.empty and 'Earnings Date' in cal:
+                         dates = cal['Earnings Date']
+                         if not dates.empty:
+                             earnings_date_str = str(dates.iloc[0].date())
+                
+                # 2. 处理字典 (新版 yfinance 可能返回字典)
+                elif isinstance(cal, dict):
+                    earnings_dates = cal.get('Earnings Date')
+                    if earnings_dates:
+                         # 可能是列表
+                         if isinstance(earnings_dates, list) and len(earnings_dates) > 0:
+                             d = earnings_dates[0]
+                             earnings_date_str = str(d.date()) if hasattr(d, 'date') else str(d)
+
         except Exception as e:
             logger.debug(f"Failed to fetch earnings calendar for {symbol}: {e}")
 
