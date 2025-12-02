@@ -1,4 +1,5 @@
 from typing import List, Optional
+import logging
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request, Body
 from fastapi.responses import FileResponse
 
@@ -6,6 +7,8 @@ from ..core.config import Config
 from ..core.auth import AuthManager
 from ..services.album_service import AlbumService
 from ..services.library_service import LibraryService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/albums", tags=["albums"])
 
@@ -41,6 +44,7 @@ async def create_album(
     service: AlbumService = Depends(get_album_service),
     user = Depends(get_current_user)
 ):
+    logger.info(f"Creating album: {name}")
     return service.create_album(name, description)
 
 @router.get("/slideshow")
@@ -80,6 +84,7 @@ async def delete_album(
     service: AlbumService = Depends(get_album_service),
     user = Depends(get_current_user)
 ):
+    logger.info(f"Deleting album: {album_id}")
     service.delete_album(album_id)
     return {"status": "success"}
 
@@ -122,6 +127,7 @@ async def upload_photos(
     user = Depends(get_current_user)
 ):
     """上传并添加到相册 (快捷方式)"""
+    logger.info(f"Uploading {len(files)} photos to album {album_id}")
     results = []
     success_ids = []
     
