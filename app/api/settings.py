@@ -1,9 +1,12 @@
 """设置API路由"""
+import logging
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from typing import Optional, List, Dict
 
 from ..core.config import Config
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
@@ -65,7 +68,9 @@ async def update_settings(
     config: Config = Depends(get_config)
 ):
     """更新设置"""
+    logger.info("Updating settings")
     if settings.layout is not None:
+        logger.info(f"Setting layout to: {settings.layout}")
         config.set('ui.layout', settings.layout)
     if settings.slideshow_interval_seconds is not None:
         config.set('ui.slideshow_interval_seconds', settings.slideshow_interval_seconds)
