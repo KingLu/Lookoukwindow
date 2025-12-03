@@ -831,15 +831,26 @@
         wrapper.innerHTML = contentHtml;
         stage.appendChild(wrapper);
         wrapper.offsetHeight; 
-        const effects = ['effect-fade', 'effect-slide-left', 'effect-zoom', 'effect-push'];
-        const effect = effects[Math.floor(Math.random() * effects.length)];
+        
+        // Determine effect based on setting
+        let effect = 'effect-fade';
+        if (slideshowTransition === 'slide-left' || slideshowTransition === 'slide-right') effect = 'effect-slide-left';
+        else if (slideshowTransition === 'slide-up' || slideshowTransition === 'slide-down') effect = 'effect-push';
+        else if (slideshowTransition === 'zoom-in' || slideshowTransition === 'zoom-out') effect = 'effect-zoom';
+        else if (slideshowTransition === 'none') effect = 'effect-fade'; // Fallback to fade for none, or could handle specifically
+        
         wrapper.classList.add(effect);
+        if (slideshowTransition === 'none') wrapper.style.transition = 'none';
+
         const oldActive = stage.querySelector('.photo-wrapper.active');
         if (oldActive) {
             oldActive.classList.remove('active');
             oldActive.classList.add('exit');
             oldActive.classList.add(effect); 
-            setTimeout(() => { if(oldActive.parentNode === stage) stage.removeChild(oldActive); }, 1500); 
+            
+            // If 'none', remove immediately
+            const delay = slideshowTransition === 'none' ? 0 : 1500;
+            setTimeout(() => { if(oldActive.parentNode === stage) stage.removeChild(oldActive); }, delay); 
         }
         wrapper.classList.remove('enter');
         wrapper.classList.add('active');
