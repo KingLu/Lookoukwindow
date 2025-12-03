@@ -61,11 +61,21 @@ class LibraryService:
         return None
 
     async def upload_photo(self, file: UploadFile) -> Dict:
-        """上传照片到库"""
-        content = await file.read()
+        """上传照片到库
         
-        # 1. 计算 Hash 查重
-        sha256_hash = hashlib.sha256(content).hexdigest()
+        存储策略：
+        - data/library: 存放用户上传的原始照片（不做任何压缩处理）
+        - data/web_images: 存放压缩/优化后的展示版
+        - data/thumbnails: 存放缩略图
+        """
+        original_content = await file.read()
+        
+        ext = Path(file.filename).suffix.lower()
+        is_image = ext in ['.jpg', '.jpeg', '.png', '.webp']
+        is_video = ext in ['.mp4', '.mov']
+        
+        # 1. 计算原始内容的 Hash 用于查重
+        sha256_hash = hashlib.sha256(original_content).hexdigest()
         
         # 检查是否存在
         for p in self._library_index:
@@ -73,29 +83,29 @@ class LibraryService:
                 logger.info(f"照片已存在 (Hash冲突): {file.filename}")
                 return {"status": "duplicate", "photo": p}
 
-        # 2. 保存文件
-        ext = Path(file.filename).suffix.lower()
+        # 2. 保存原始文件到 library（不做任何处理）
         if not ext: ext = ".jpg"
         
         photo_id = str(uuid.uuid4())
         filename = f"{photo_id}{ext}"
-        file_path = self.library_dir / filename
+        original_path = self.library_dir / filename
         
-        with open(file_path, "wb") as f:
-            f.write(content)
+        with open(original_path, "wb") as f:
+            f.write(original_content)
+        
+        logger.info(f"原图已保存: {original_path} ({len(original_content)/1024/1024:.2f}MB)")
             
-        # 3. 生成衍生图
-        is_video = ext in ['.mp4', '.mov']
+        # 3. 生成衍生图（web优化版 + 缩略图）
         if not is_video:
-            self._generate_derivatives(file_path, photo_id)
+            self._generate_derivatives(original_path, photo_id)
             
         # 4. 解析元数据
-        stat = file_path.stat()
+        stat = original_path.stat()
         photo_data = {
             "id": photo_id,
             "filename": filename,
             "original_filename": file.filename,
-            "size": stat.st_size,
+            "size": stat.st_size,  # 原始文件大小
             "hash": sha256_hash,
             "created_at": datetime.fromtimestamp(stat.st_ctime).isoformat(),
             "url": f"/api/library/photos/{filename}",
@@ -105,7 +115,7 @@ class LibraryService:
         }
         
         if not is_video:
-            exif = self._get_exif_data(file_path)
+            exif = self._get_exif_data(original_path)
             photo_data.update(exif)
             
         # 5. 更新索引
@@ -125,30 +135,46 @@ class LibraryService:
         return None
 
     def rotate_photo(self, photo_id: str, degree: int) -> bool:
-        """旋转照片"""
+        """旋转照片（只修改展示版，不修改原图）
+        
+        原图保持不变，只旋转 web_images 和 thumbnails 中的展示版
+        """
         photo = self.get_photo(photo_id)
         if not photo or photo["type"] != "image": return False
         
         filename = photo["filename"]
-        file_path = self.library_dir / filename
+        original_path = self.library_dir / filename
+        web_path = self.web_images_dir / filename
+        thumb_path = self.thumbnails_dir / filename
         
         try:
-            # 旋转原图
-            with Image.open(file_path) as img:
-                # 负数是顺时针，Pillow rotate 正数是逆时针
-                # 前端传 90 (顺时针) -> Pillow rotate(-90)
+            # 从原图重新生成旋转后的 web 版和缩略图
+            with Image.open(original_path) as img:
+                # 旋转（负数是顺时针，Pillow rotate 正数是逆时针）
                 rotated = img.rotate(-degree, expand=True)
-                rotated.save(file_path, quality=95)
+                
+                if rotated.mode in ('RGBA', 'P'):
+                    rotated = rotated.convert('RGB')
+                
+                # 生成 Web 优化图 (1280px)
+                width, height = rotated.size
+                if width > 1280 or height > 1280:
+                    web_img = rotated.copy()
+                    web_img.thumbnail((1280, 1280), Image.Resampling.LANCZOS)
+                    web_img.save(web_path, "JPEG", quality=75)
+                else:
+                    rotated.save(web_path, "JPEG", quality=75)
+                
+                # 生成缩略图 (400px)
+                rotated.thumbnail((400, 400))
+                rotated.save(thumb_path, "JPEG", quality=80)
             
-            # 重新生成衍生图
-            self._generate_derivatives(file_path, photo_id)
+            # 记录旋转角度（累计），方便后续可能的操作
+            current_rotation = photo.get("rotation", 0)
+            new_rotation = (current_rotation + degree) % 360
+            self.update_photo(photo_id, {"rotation": new_rotation})
             
-            # 更新 Hash? 理论上内容变了Hash也变了，但为了性能暂时不重新计算Hash?
-            # 最好还是更新，否则会导致查重失效
-            with open(file_path, "rb") as f:
-                new_hash = hashlib.sha256(f.read()).hexdigest()
-            
-            self.update_photo(photo_id, {"hash": new_hash})
+            logger.info(f"照片 {photo_id} 已旋转 {degree}° (总计 {new_rotation}°)")
             return True
         except Exception as e:
             logger.error(f"旋转失败: {e}")
@@ -156,45 +182,73 @@ class LibraryService:
 
     def delete_photo(self, photo_id: str):
         """删除照片"""
+        logger.info(f"开始删除照片: {photo_id}")
         photo = self.get_photo(photo_id)
-        if not photo: return
+        if not photo: 
+            logger.warning(f"删除失败: 图片ID {photo_id} 未在索引中找到")
+            return
         
         # 删除物理文件
         filename = photo["filename"]
-        (self.library_dir / filename).unlink(missing_ok=True)
-        (self.thumbnails_dir / filename).unlink(missing_ok=True)
-        (self.web_images_dir / filename).unlink(missing_ok=True)
+        
+        def safe_delete(base_dir: Path, name: str, label: str):
+            try:
+                path = base_dir / name
+                if path.exists():
+                    path.unlink()
+                    logger.info(f"[{label}] 已删除: {path}")
+                else:
+                    logger.warning(f"[{label}] 文件不存在: {path}")
+            except Exception as e:
+                logger.error(f"[{label}] 删除失败 {name}: {e}")
+
+        safe_delete(self.library_dir, filename, "原图")
+        safe_delete(self.thumbnails_dir, filename, "缩略图")
+        safe_delete(self.web_images_dir, filename, "Web图")
         
         # 更新索引
         self._library_index = [p for p in self._library_index if p["id"] != photo_id]
         self._save_index()
+        logger.info(f"照片 {photo_id} 已从索引移除")
 
     def _generate_derivatives(self, original_path: Path, photo_id: str):
-        """生成缩略图和Web图"""
+        """生成缩略图和Web优化图
+        
+        从原图生成：
+        - web_images: 1280px 压缩版（用于前端展示）
+        - thumbnails: 400px 缩略图（用于列表预览）
+        """
         filename = original_path.name
-        # Note: thumbnails now in root/thumbnails/{filename} instead of album_id folders
-        # But to avoid conflicts, we use UUID filename which is unique globally
         
         thumb_path = self.thumbnails_dir / filename
         web_path = self.web_images_dir / filename
 
         try:
             with Image.open(original_path) as img:
+                original_size = img.size
+                
                 if img.mode in ('RGBA', 'P'):
                     img = img.convert('RGB')
                 
-                # Web (1920px)
+                # Web 优化图 (1280px - 适配树莓派)
                 width, height = img.size
-                if width > 1920 or height > 1920:
+                if width > 1280 or height > 1280:
                     web_img = img.copy()
-                    web_img.thumbnail((1920, 1920), Image.Resampling.LANCZOS)
-                    web_img.save(web_path, "JPEG", quality=85)
+                    web_img.thumbnail((1280, 1280), Image.Resampling.LANCZOS)
+                    web_img.save(web_path, "JPEG", quality=75)
+                    web_size = web_path.stat().st_size
+                    logger.info(f"Web图已生成: {web_path.name} ({original_size[0]}x{original_size[1]} -> {web_img.size[0]}x{web_img.size[1]}, {web_size/1024:.1f}KB)")
                 else:
-                    img.save(web_path, "JPEG", quality=90)
+                    img.save(web_path, "JPEG", quality=75)
+                    web_size = web_path.stat().st_size
+                    logger.info(f"Web图已生成: {web_path.name} (原尺寸, {web_size/1024:.1f}KB)")
 
-                # Thumb (400px)
+                # 缩略图 (400px)
                 img.thumbnail((400, 400))
                 img.save(thumb_path, "JPEG", quality=80)
+                thumb_size = thumb_path.stat().st_size
+                logger.info(f"缩略图已生成: {thumb_path.name} ({img.size[0]}x{img.size[1]}, {thumb_size/1024:.1f}KB)")
+                
         except Exception as e:
             logger.error(f"生成衍生图失败 {filename}: {e}")
 
