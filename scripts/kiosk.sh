@@ -135,6 +135,10 @@ if [[ "$BROWSER" == *"chromium"* ]]; then
         --check-for-update-interval=31536000 \
         --disable-restore-session-state \
         --disable-translate \
+        --disable-extensions \
+        --disable-component-extensions-with-background-pages \
+        --disable-default-apps \
+        --disable-features=Translate,TranslateUI \
         http://localhost:8000 >> "$LOG_FILE" 2>&1 &
 else
     # Firefox 启动参数
