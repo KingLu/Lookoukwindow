@@ -4,6 +4,7 @@ from fastapi.responses import FileResponse
 
 from ..core.config import Config
 from ..core.auth import AuthManager
+from ..services.album_service import AlbumService
 from ..services.library_service import LibraryService
 
 router = APIRouter(prefix="/api/library", tags=["library"])
@@ -13,6 +14,12 @@ def get_config():
 
 def get_library_service(config: Config = Depends(get_config)):
     return LibraryService(config)
+
+def get_album_service(
+    config: Config = Depends(get_config), 
+    library_service: LibraryService = Depends(get_library_service)
+):
+    return AlbumService(config, library_service)
 
 async def get_current_user(request: Request, config: Config = Depends(get_config)):
     auth_manager = AuthManager(config)
@@ -82,10 +89,16 @@ async def rotate_photo(
 async def delete_photo(
     photo_id: str,
     service: LibraryService = Depends(get_library_service),
+    album_service: AlbumService = Depends(get_album_service),
     user = Depends(get_current_user)
 ):
     """删除照片"""
+    # 1. 从库中删除
     service.delete_photo(photo_id)
+    
+    # 2. 从所有相册中清理引用
+    album_service.purge_photo_from_all_albums(photo_id)
+    
     return {"status": "success"}
 
 @router.get("/photos/{filename}")

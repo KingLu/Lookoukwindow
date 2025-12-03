@@ -141,11 +141,6 @@ class AlbumService:
         metadata["photo_count"] = len(metadata["photo_ids"])
         
         # 如果封面被移除，重置
-        # 注意：cover_photo 存的是 filename，不是 id，这有点不方便
-        # 我们先检查 photo_ids 里还有没有对应的 filename
-        # 或者我们以后把 cover_photo 改为存 ID，但前端可能要改
-        # 暂时：如果封面文件名对应的 ID 被移除了？
-        # 简化处理：如果列表空了，清除封面；否则如果不匹配任何现有照片，换一个
         if not metadata["photo_ids"]:
             metadata["cover_photo"] = None
         else:
@@ -166,6 +161,19 @@ class AlbumService:
                 if photo: metadata["cover_photo"] = photo["filename"]
 
         self._save_metadata(album_id, metadata)
+
+    def purge_photo_from_all_albums(self, photo_id: str):
+        """从所有相册中彻底清除指定照片引用（通常在彻底删除照片时调用）"""
+        for album_dir in self.albums_dir.iterdir():
+            if not album_dir.is_dir(): continue
+            
+            metadata = self._load_metadata(album_dir.name)
+            if not metadata: continue
+            
+            photo_ids = metadata.get("photo_ids", [])
+            if photo_id in photo_ids:
+                # 使用 remove_photos 逻辑来处理移除和封面更新
+                self.remove_photos(album_dir.name, [photo_id])
 
     def get_photos(self, album_id: str) -> List[Dict]:
         """获取相册照片详情"""
