@@ -80,16 +80,14 @@
                     </div>
                 </div>
 
-                <!-- 第3层：目标价对比区 -->
+                <!-- 第3层：目标价区 (简化版) -->
                 <div class="stock-target-section">
                     <div class="target-row">
-                        <span id="target-label" class="target-label">目标价</span>
                         <span id="metric-target-val" class="target-value">--</span>
                         <span id="metric-target-diff" class="target-diff">--</span>
                     </div>
                     <!-- 持仓收益 (条件显示) -->
                     <div id="holding-info-row" class="target-row holding-row" style="display:none;">
-                        <span class="target-label">持仓收益</span>
                         <span id="metric-holding-gain" class="holding-value">--</span>
                         <span id="metric-holding-percent" class="holding-percent">--</span>
                     </div>
@@ -387,25 +385,20 @@
     .hero-change span { transition: color 0.3s ease; }
 
     /* 第3层：目标价区 */
+    /* 目标价区 */
     .stock-target-section {
-        display: flex; flex-direction: column; gap: 2px;
+        display: flex; flex-direction: column; gap: 1px;
         padding-top: 3px;
         border-top: 1px dashed rgba(255,255,255,0.08);
     }
     .target-row {
-        display: flex; align-items: baseline; gap: 5px;
-        flex-wrap: wrap;
-    }
-    .target-label { 
-        font-size: 0.65rem; color: #666; 
+        display: flex; align-items: baseline; gap: 4px;
     }
     .target-value { 
-        font-size: 0.9rem; font-weight: 600; color: #ddd; 
+        font-size: 0.95rem; font-weight: 700; color: #bbb; 
     }
     .target-diff { 
-        font-size: 0.7rem; font-weight: 600;
-        padding: 1px 4px; border-radius: 3px;
-        background: rgba(255,255,255,0.05);
+        font-size: 0.75rem; font-weight: 600;
     }
     .holding-row { margin-top: 1px; }
     .holding-value { font-size: 0.85rem; font-weight: 600; }
@@ -762,9 +755,8 @@
             setStyle('stock-change-val', 'color', color);
             setStyle('stock-change-pct', 'color', color);
 
-            // 2. Unified Target Logic & Badge
+            // 2. 类型标签 & 目标价逻辑
             const badge = document.getElementById('stock-type-badge');
-            const targetLabel = document.getElementById('target-label');
             const holdingRow = document.getElementById('holding-info-row');
 
             let targetPrice = 0;
@@ -773,15 +765,11 @@
             if (data.type === 'holding') {
                 if(badge) { badge.textContent = '持仓'; badge.className = 'stock-badge badge-holding'; }
                 if(holdingRow) holdingRow.style.display = 'flex';
-                if(targetLabel) targetLabel.textContent = '止盈目标';
-                
                 targetPrice = data.target_sell_price;
                 isBuyTarget = false;
             } else {
                 if(badge) { badge.textContent = '观察'; badge.className = 'stock-badge badge-watching'; }
                 if(holdingRow) holdingRow.style.display = 'none';
-                if(targetLabel) targetLabel.textContent = '买入目标';
-                
                 targetPrice = data.target_buy_price;
                 isBuyTarget = true;
             }
@@ -870,28 +858,31 @@
         
         if (!target || target === 0) {
             valEl.textContent = '--';
-            diffEl.textContent = '未设置';
-            diffEl.className = 'target-diff neutral';
+            diffEl.textContent = '';
             diffEl.style.color = '#888';
             return;
         }
         
         valEl.textContent = target.toFixed(2);
-        const diffPercent = ((current - target) / target) * 100;
+        
+        // 计算从当前价到目标价需要的涨跌幅
+        // 公式: (目标价 - 当前价) / 当前价 * 100
+        const changeToTarget = ((target - current) / current) * 100;
         
         if (isBuy) {
-            // Buy Target: Want current < target. diffPercent is negative is good.
-            // Show "Dist +X%" or "Reached"
-            const distText = diffPercent <= 0 ? '已击穿' : `+${diffPercent.toFixed(1)}%`;
-            diffEl.textContent = distText;
-            // Green if close or reached
-            diffEl.style.color = diffPercent <= 5 ? '#2ecc71' : '#aaa'; 
+            // 买入目标：目标价 < 当前价，需要下跌才能达到，所以是负数
+            // 例如：当前 69.75，目标 15.00，需要下跌 -78.5%
+            const sign = changeToTarget >= 0 ? '▲' : '▼';
+            const color = changeToTarget >= 0 ? '#e74c3c' : '#2ecc71';
+            diffEl.textContent = `${sign} ${changeToTarget >= 0 ? '+' : ''}${changeToTarget.toFixed(1)}%`;
+            diffEl.style.color = color;
         } else {
-            // Sell Target: Want current > target. diffPercent positive is good.
-            const distText = diffPercent >= 0 ? '已达标' : `${diffPercent.toFixed(1)}%`;
-            diffEl.textContent = distText;
-            // Red if close or reached
-            diffEl.style.color = diffPercent >= -5 ? '#e74c3c' : '#aaa';
+            // 卖出目标：目标价 > 当前价，需要上涨才能达到，所以是正数
+            // 例如：当前 42.78，目标 60.00，需要上涨 +40.3%
+            const sign = changeToTarget >= 0 ? '▲' : '▼';
+            const color = changeToTarget >= 0 ? '#e74c3c' : '#2ecc71';
+            diffEl.textContent = `${sign} ${changeToTarget >= 0 ? '+' : ''}${changeToTarget.toFixed(1)}%`;
+            diffEl.style.color = color;
         }
     }
 
