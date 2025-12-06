@@ -278,15 +278,21 @@ async def get_stock(
                 hist['MA50'] = hist['Close'].rolling(window=50).mean()
                 
                 # 获取最近52周数据，找出高低点日期
-                one_year_ago = datetime.now() - timedelta(days=365)
-                recent_year = hist[hist.index >= one_year_ago]
-                if not recent_year.empty:
-                    # 找到52周最高价日期
-                    high_idx = recent_year['High'].idxmax()
-                    year_high_date = high_idx.strftime("%Y-%m-%d") if high_idx else None
-                    # 找到52周最低价日期
-                    low_idx = recent_year['Low'].idxmin()
-                    year_low_date = low_idx.strftime("%Y-%m-%d") if low_idx else None
+                # 使用 pandas 的时区感知方式进行比较
+                try:
+                    # 取最近52周的数据（约52条记录）
+                    recent_year = hist.tail(52)
+                    if not recent_year.empty:
+                        # 找到52周最高价日期
+                        high_idx = recent_year['High'].idxmax()
+                        if high_idx is not None:
+                            year_high_date = high_idx.strftime("%Y-%m-%d")
+                        # 找到52周最低价日期
+                        low_idx = recent_year['Low'].idxmin()
+                        if low_idx is not None:
+                            year_low_date = low_idx.strftime("%Y-%m-%d")
+                except Exception as e:
+                    logger.debug(f"Failed to find 52-week high/low dates for {symbol}: {e}")
                 
                 # 降采样/格式化 (3年约150周，数据量适中)
                 for idx, row in hist.iterrows():
