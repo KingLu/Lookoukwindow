@@ -1130,14 +1130,16 @@
         if (!metaContainer) return;
         if (showMetadata) {
             metaContainer.classList.remove('hidden');
-            metaContainer.style.display = 'block';
+            metaContainer.style.display = 'flex';
         } else {
             metaContainer.classList.add('hidden');
             metaContainer.style.display = 'none';
             return;
         }
-        let primaryText = photo.album_name || '未命名相册';
-        let secondaryHtml = '';
+        
+        let items = [];
+        
+        // 日期时间（必显示）
         let timeStr = '';
         try {
             if (photo.date_taken) {
@@ -1150,25 +1152,38 @@
                     timeStr = `${datePart} ${timePart}`;
                 } else { timeStr = String(photo.date_taken); }
             } else if (photo.created_at) {
-                 const d = new Date(photo.created_at);
-                 if (!isNaN(d.getTime())) timeStr = d.toLocaleDateString('zh-CN').replace(/\//g, '-');
+                const d = new Date(photo.created_at);
+                if (!isNaN(d.getTime())) {
+                    const datePart = d.toLocaleDateString('zh-CN', {year: 'numeric', month: '2-digit', day: '2-digit'}).replace(/\//g, '-');
+                    const timePart = d.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit', hour12: false});
+                    timeStr = `${datePart} ${timePart}`;
+                }
             }
         } catch(e) {}
-        if (timeStr) secondaryHtml += `<div class="meta-item"><img src="/static/icons/calendar.svg" class="meta-icon-img"> ${timeStr}</div>`;
+        if (timeStr) items.push(`<span class="meta-item"><img src="/static/icons/calendar.svg" class="meta-icon-img">${timeStr}</span>`);
+        
+        // 设备信息
         try {
             if (photo.model) {
                 const make = photo.make ? String(photo.make).replace(/\0/g, '').trim() : '';
                 const model = String(photo.model).replace(/\0/g, '').trim();
                 let device = model;
                 if (make && !model.toLowerCase().includes(make.toLowerCase())) device = `${make} ${model}`;
-                if (device) secondaryHtml += `<div class="meta-item"><img src="/static/icons/camera.svg" class="meta-icon-img"> ${device}</div>`;
+                if (device) items.push(`<span class="meta-item"><img src="/static/icons/camera.svg" class="meta-icon-img">${device}</span>`);
             }
         } catch(e) {}
+        
+        // 位置信息
         try {
-            if (photo.location_name) secondaryHtml += `<div class="meta-item"><img src="/static/icons/location.svg" class="meta-icon-img"> ${photo.location_name}</div>`;
-            else if (photo.has_location) secondaryHtml += `<div class="meta-item"><img src="/static/icons/location.svg" class="meta-icon-img">包含位置信息</div>`;
+            if (photo.location_name) items.push(`<span class="meta-item"><img src="/static/icons/location.svg" class="meta-icon-img">${photo.location_name}</span>`);
         } catch(e) {}
-        metaContainer.innerHTML = `<div class="meta-primary"><img src="/static/icons/folder.svg" class="meta-icon-img"> ${primaryText}</div><div class="meta-secondary">${secondaryHtml}</div><div class="meta-counter">${index + 1} / ${photos.length}</div>`;
+        
+        // 只有有内容时才显示
+        if (items.length > 0) {
+            metaContainer.innerHTML = items.join('<span class="meta-sep">·</span>');
+        } else {
+            metaContainer.style.display = 'none';
+        }
     }
     
     function prevPhoto() {
