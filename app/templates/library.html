@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>照片库管理 - Lookoukwindow</title>
-    <link rel="stylesheet" href="/static/css/admin.css"> 
-    <!-- Assuming we might want to extract css later, but for now I'll inline essential styles or reuse logic -->
+    <link rel="stylesheet" href="/static/css/admin.css">
+    <!-- Cropper.js 图片剪裁库 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
     <style>
         /* Reuse settings.html basic styles + new ones */
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -130,7 +132,79 @@
             height: 90vh; display: flex; border-radius: 8px; overflow: hidden;
         }
         .modal-image-area { flex: 1; background: #000; display: flex; align-items: center; justify-content: center; position: relative; }
-        .modal-image-area img { max-width: 100%; max-height: 100%; }
+        .modal-image-area img { max-width: 100%; max-height: 100%; transition: transform 0.3s ease; }
+        
+        /* 图片操作工具栏 */
+        .image-toolbar {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 8px 12px;
+            border-radius: 8px;
+            z-index: 20;
+        }
+        .toolbar-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            width: 40px;
+            height: 40px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.2s;
+        }
+        .toolbar-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.05);
+        }
+        .toolbar-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .toolbar-btn.rotating {
+            animation: spin 0.5s ease;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(90deg); }
+        }
+        
+        /* Cropper.js 自定义样式 */
+        .cropper-container {
+            max-width: 100%;
+            max-height: 100%;
+        }
+        .cropper-view-box,
+        .cropper-face {
+            border-radius: 0;
+        }
+        .cropper-line {
+            background-color: #667eea;
+        }
+        .cropper-point {
+            background-color: #667eea;
+            width: 10px;
+            height: 10px;
+        }
+        .cropper-modal {
+            background-color: rgba(0, 0, 0, 0.7);
+        }
+        
+        /* 比例按钮样式 */
+        .toolbar-btn.ratio-btn {
+            width: auto;
+            padding: 0 10px;
+            font-size: 12px;
+        }
         
         .modal-sidebar { width: 350px; padding: 20px; overflow-y: auto; border-left: 1px solid #444; display: flex; flex-direction: column; }
         .form-group { margin-bottom: 15px; }
@@ -210,6 +284,25 @@
                 <div style="position:absolute; top:10px; right:10px; z-index:10;">
                     <button class="btn" style="background:rgba(0,0,0,0.6);" onclick="closeModal()">✕</button>
                 </div>
+                <!-- 图片操作工具栏 -->
+                <div class="image-toolbar" id="imageToolbar" style="display:none;">
+                    <button class="toolbar-btn" onclick="rotatePhoto(-90)" title="向左旋转 90°">↺</button>
+                    <button class="toolbar-btn" onclick="rotatePhoto(90)" title="向右旋转 90°">↻</button>
+                    <div style="width:1px; height:24px; background:rgba(255,255,255,0.2); margin:0 4px;"></div>
+                    <button class="toolbar-btn" onclick="enterCropMode()" title="剪裁" id="cropBtn">✂</button>
+                    <button class="toolbar-btn" onclick="resetPhoto()" title="重置为原图" id="resetBtn">⟲</button>
+                </div>
+                <!-- 剪裁模式工具栏 -->
+                <div class="image-toolbar" id="cropToolbar" style="display:none;">
+                    <button class="toolbar-btn" onclick="applyCrop()" title="确认剪裁" style="background:rgba(39,174,96,0.5);">✓</button>
+                    <button class="toolbar-btn" onclick="cancelCrop()" title="取消剪裁" style="background:rgba(231,76,60,0.5);">✕</button>
+                    <div style="width:1px; height:24px; background:rgba(255,255,255,0.2); margin:0 4px;"></div>
+                    <button class="toolbar-btn ratio-btn" onclick="setCropRatio(NaN)" title="自由比例">自由</button>
+                    <button class="toolbar-btn ratio-btn" onclick="setCropRatio(1)" title="1:1 正方形">1:1</button>
+                    <button class="toolbar-btn ratio-btn" onclick="setCropRatio(16/9)" title="16:9 横屏">16:9</button>
+                    <button class="toolbar-btn ratio-btn" onclick="setCropRatio(9/16)" title="9:16 竖屏">9:16</button>
+                    <button class="toolbar-btn ratio-btn" onclick="setCropRatio(4/3)" title="4:3">4:3</button>
+                </div>
             </div>
             <div class="modal-sidebar">
                 <h3>编辑信息</h3>
@@ -253,7 +346,14 @@
 
         async function loadPhotos() {
             try {
-                const res = await fetch(`${API_BASE}/library/photos`);
+                // 更新刷新计数器，确保缓存失效
+                refreshCounter = Date.now();
+                
+                // 添加时间戳和 no-cache 防止浏览器缓存 API 响应
+                const res = await fetch(`${API_BASE}/library/photos?_t=${refreshCounter}`, {
+                    cache: 'no-store',
+                    headers: { 'Cache-Control': 'no-cache' }
+                });
                 allPhotos = await res.json();
                 renderPhotos(allPhotos);
             } catch (e) {
@@ -261,6 +361,9 @@
             }
         }
 
+        // 全局刷新计数器，用于强制刷新缓存
+        let refreshCounter = Date.now();
+        
         function renderPhotos(photos) {
             const grid = document.getElementById('photoGrid');
             grid.innerHTML = '';
@@ -269,11 +372,10 @@
             photos.forEach(p => {
                 let url = p.thumbnail_url || p.url; // 视频用 url 暂时不支持缩略图显示占位符
                 
-                // 添加 cache buster (使用 updated_at 或 created_at)
-                const ts = p.updated_at ? new Date(p.updated_at).getTime() : (p.created_at ? new Date(p.created_at).getTime() : '');
-                if (ts) {
-                    url += (url.includes('?') ? '&' : '?') + `v=${ts}`;
-                }
+                // 添加 cache buster (使用 updated_at 或当前时间)
+                // 使用 refreshCounter 确保每次 loadPhotos 后都刷新
+                const ts = p.updated_at ? new Date(p.updated_at).getTime() : refreshCounter;
+                url += (url.includes('?') ? '&' : '?') + `v=${ts}&_r=${refreshCounter}`;
 
                 const el = document.createElement('div');
                 el.className = `photo-card ${selectedPhotos.has(p.id) ? 'selected' : ''}`;
@@ -388,16 +490,22 @@
             const modal = document.getElementById('editModal');
             const img = document.getElementById('modalImg');
             const vid = document.getElementById('modalVideo');
+            const toolbar = document.getElementById('imageToolbar');
             
             if (photo.type === 'video') {
                 img.style.display = 'none';
                 vid.style.display = 'block';
                 vid.src = photo.url;
+                toolbar.style.display = 'none'; // 视频不显示旋转工具栏
             } else {
                 vid.style.display = 'none';
                 img.style.display = 'block';
-                // 使用 Web 优化图或原图
-                img.src = photo.web_url || photo.url;
+                // 使用 Web 优化图或原图，添加时间戳防止缓存
+                let imgUrl = photo.web_url || photo.url;
+                const ts = Date.now();
+                imgUrl += (imgUrl.includes('?') ? '&' : '?') + `_t=${ts}`;
+                img.src = imgUrl;
+                toolbar.style.display = 'flex'; // 图片显示旋转工具栏
             }
             
             document.getElementById('metaFilename').textContent = photo.filename;
@@ -414,8 +522,191 @@
             
             modal.style.display = 'block';
         }
+        
+        // Cropper.js 实例
+        let cropper = null;
+        let isCropMode = false;
+        
+        // 旋转照片
+        async function rotatePhoto(degree) {
+            if (!currentPhotoId) return;
+            
+            const toolbar = document.getElementById('imageToolbar');
+            const buttons = toolbar.querySelectorAll('.toolbar-btn');
+            
+            // 禁用按钮，显示加载状态
+            buttons.forEach(btn => btn.disabled = true);
+            
+            try {
+                const res = await fetch(`${API_BASE}/library/photos/${currentPhotoId}/rotate?degree=${degree}`, {
+                    method: 'POST'
+                });
+                
+                if (res.ok) {
+                    showToast(degree > 0 ? '向右旋转成功' : '向左旋转成功');
+                    
+                    // 先刷新照片列表获取新的 updated_at
+                    await loadPhotos();
+                    
+                    // 然后刷新模态框中的图片
+                    const img = document.getElementById('modalImg');
+                    const currentSrc = img.src.split('?')[0];
+                    img.src = currentSrc + '?_t=' + Date.now();
+                } else {
+                    const errData = await res.json();
+                    showToast(errData.detail || '旋转失败', 'error');
+                }
+            } catch (e) {
+                console.error('旋转错误:', e);
+                showToast('旋转失败', 'error');
+            } finally {
+                buttons.forEach(btn => btn.disabled = false);
+            }
+        }
+        
+        // 进入剪裁模式
+        function enterCropMode() {
+            if (isCropMode) return;
+            isCropMode = true;
+            
+            const img = document.getElementById('modalImg');
+            const imageToolbar = document.getElementById('imageToolbar');
+            const cropToolbar = document.getElementById('cropToolbar');
+            
+            // 切换工具栏
+            imageToolbar.style.display = 'none';
+            cropToolbar.style.display = 'flex';
+            
+            // 初始化 Cropper
+            cropper = new Cropper(img, {
+                viewMode: 1,
+                dragMode: 'crop',
+                aspectRatio: NaN, // 自由比例
+                autoCropArea: 0.8,
+                restore: false,
+                guides: true,
+                center: true,
+                highlight: true,
+                cropBoxMovable: true,
+                cropBoxResizable: true,
+                toggleDragModeOnDblclick: false,
+                background: true,
+            });
+        }
+        
+        // 取消剪裁
+        function cancelCrop() {
+            if (cropper) {
+                cropper.destroy();
+                cropper = null;
+            }
+            isCropMode = false;
+            
+            const imageToolbar = document.getElementById('imageToolbar');
+            const cropToolbar = document.getElementById('cropToolbar');
+            
+            imageToolbar.style.display = 'flex';
+            cropToolbar.style.display = 'none';
+        }
+        
+        // 设置剪裁比例
+        function setCropRatio(ratio) {
+            if (cropper) {
+                cropper.setAspectRatio(ratio);
+            }
+        }
+        
+        // 确认剪裁
+        async function applyCrop() {
+            if (!cropper || !currentPhotoId) return;
+            
+            // 获取剪裁数据
+            const data = cropper.getData(true); // true = 返回整数值
+            
+            const cropToolbar = document.getElementById('cropToolbar');
+            const buttons = cropToolbar.querySelectorAll('.toolbar-btn');
+            buttons.forEach(btn => btn.disabled = true);
+            
+            try {
+                const res = await fetch(`${API_BASE}/library/photos/${currentPhotoId}/crop`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        x: Math.round(data.x),
+                        y: Math.round(data.y),
+                        width: Math.round(data.width),
+                        height: Math.round(data.height)
+                    })
+                });
+                
+                if (res.ok) {
+                    showToast('剪裁成功');
+                    
+                    // 退出剪裁模式
+                    cancelCrop();
+                    
+                    // 先刷新照片列表获取新的 updated_at
+                    await loadPhotos();
+                    
+                    // 然后刷新模态框中的图片
+                    const img = document.getElementById('modalImg');
+                    const currentSrc = img.src.split('?')[0];
+                    img.src = currentSrc + '?_t=' + Date.now();
+                } else {
+                    const errData = await res.json();
+                    showToast(errData.detail || '剪裁失败', 'error');
+                }
+            } catch (e) {
+                console.error('剪裁错误:', e);
+                showToast('剪裁失败', 'error');
+            } finally {
+                buttons.forEach(btn => btn.disabled = false);
+            }
+        }
+        
+        // 重置照片（恢复原图）
+        async function resetPhoto() {
+            if (!currentPhotoId) return;
+            
+            if (!confirm('确定要重置照片吗？这将恢复到原始状态，取消所有旋转和剪裁。')) return;
+            
+            try {
+                const res = await fetch(`${API_BASE}/library/photos/${currentPhotoId}/reset`, {
+                    method: 'POST'
+                });
+                
+                if (res.ok) {
+                    showToast('已重置为原图');
+                    
+                    // 先刷新照片列表获取新的 updated_at
+                    await loadPhotos();
+                    
+                    // 然后刷新模态框中的图片
+                    const img = document.getElementById('modalImg');
+                    const currentSrc = img.src.split('?')[0];
+                    img.src = currentSrc + '?_t=' + Date.now();
+                } else {
+                    const errData = await res.json();
+                    showToast(errData.detail || '重置失败', 'error');
+                }
+            } catch (e) {
+                console.error('重置错误:', e);
+                showToast('重置失败', 'error');
+            }
+        }
 
         function closeModal() {
+            // 如果在剪裁模式，先退出
+            if (cropper) {
+                cropper.destroy();
+                cropper = null;
+            }
+            isCropMode = false;
+            
+            // 重置工具栏显示状态
+            document.getElementById('imageToolbar').style.display = 'none';
+            document.getElementById('cropToolbar').style.display = 'none';
+            
             document.getElementById('editModal').style.display = 'none';
             document.getElementById('modalVideo').pause();
         }
