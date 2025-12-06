@@ -60,73 +60,71 @@
         
         <!-- 2. 个股轮播 (重构为价值仪表盘) -->
         <div class="stock-carousel" id="stock-carousel">
-            <!-- 左侧：基本信息 + 估值仪表盘 -->
-            <div class="stock-value-panel">
-                <!-- 1. Name & Change Row -->
-                <div class="stock-row-header">
-                     <div class="stock-name-wrapper">
-                         <span id="stock-name" class="stock-name">--</span>
-                         <span id="stock-type-badge" class="stock-badge">--</span>
-                     </div>
-                     <span id="stock-change" class="stock-change">--</span>
-                </div>
-
-                <!-- 2. Main Data Row (Symbol - Price - Target Unified) -->
-                <div class="stock-row-main">
-                    <!-- 股票代码 -->
-                    <div class="col-symbol" id="stock-symbol">--</div>
-                    
-                    <!-- 当前价格 -->
-                    <div class="col-price" id="stock-price">--</div>
-                    
-                    <!-- 目标价格 (动态) -->
-                    <div class="col-target">
-                         <span id="target-label" class="label-mini">目标</span>
-                         <div class="target-val-group">
-                             <span id="metric-target-val" class="target-val">--</span>
-                             <span id="metric-target-diff" class="target-diff">--</span>
-                         </div>
+            <!-- 左侧：核心信息区 (重构版) -->
+            <div class="stock-info-panel">
+                <!-- 第1层：股票标识 -->
+                <div class="stock-identity">
+                    <span id="stock-name" class="stock-name">--</span>
+                    <div class="stock-meta">
+                        <span id="stock-symbol" class="stock-symbol">--</span>
+                        <span id="stock-type-badge" class="stock-badge">--</span>
                     </div>
                 </div>
 
-                <!-- 3. Holding Row (Conditional) -->
-                <div id="holding-info-row" class="stock-row-holding" style="display:none;">
-                    <span class="label-mini">持仓收益:</span>
-                    <div style="display:flex; align-items:baseline; gap:5px;">
-                        <span id="metric-holding-gain" style="font-weight:bold; font-size:0.9rem;">--</span>
-                        <span id="metric-holding-percent" style="font-size:0.75rem;">--</span>
+                <!-- 第2层：价格核心区 (Hero) -->
+                <div class="stock-hero">
+                    <div id="stock-price" class="hero-price">--</div>
+                    <div id="stock-change" class="hero-change">
+                        <span id="stock-change-val">--</span>
+                        <span id="stock-change-pct">(--)</span>
                     </div>
                 </div>
 
-                <!-- 4. Extra Info Grid (Compact) -->
-                <div class="stock-grid-extra">
-                     <div>52周: <span id="metric-year-range">--</span></div>
-                     <div>量: <span id="metric-volume">--</span></div>
-                     <div>前收: <span id="metric-prev-close">--</span></div>
-                     <div id="metric-analyst-container" style="display:none;">分析: <span id="metric-analyst-target">--</span></div>
-                     <div id="metric-earnings-container" style="display:none;">财报: <span id="metric-earnings">--</span></div>
-                </div>
-
-                <!-- Gauge -->
-                <div class="price-gauge-container">
-                    <div class="gauge-track">
-                        <div id="gauge-bar" class="gauge-bar"></div>
-                        <div id="gauge-marker-buy" class="gauge-marker buy"></div>
-                        <div id="gauge-marker-sell" class="gauge-marker sell"></div>
-                        <div id="gauge-cursor" class="gauge-cursor"></div>
+                <!-- 第3层：目标价对比区 -->
+                <div class="stock-target-section">
+                    <div class="target-row">
+                        <span id="target-label" class="target-label">目标价</span>
+                        <span id="metric-target-val" class="target-value">--</span>
+                        <span id="metric-target-diff" class="target-diff">--</span>
                     </div>
-                    <div class="gauge-label-row">
-                        <span style="color: #2ecc71; font-size: 0.65rem;">低估</span>
-                        <span style="color: #e74c3c; font-size: 0.65rem;">高估</span>
+                    <!-- 持仓收益 (条件显示) -->
+                    <div id="holding-info-row" class="target-row holding-row" style="display:none;">
+                        <span class="target-label">持仓收益</span>
+                        <span id="metric-holding-gain" class="holding-value">--</span>
+                        <span id="metric-holding-percent" class="holding-percent">--</span>
                     </div>
                 </div>
             </div>
 
-            <!-- 右侧：周期趋势图 (3年周线) -->
-            <div class="stock-chart-panel">
-                <div class="chart-box">
-                    <div class="chart-label">3年周线 (周期趋势) + MA50</div>
+            <!-- 右侧：图表 + 辅助信息 -->
+            <div class="stock-chart-section">
+                <!-- 趋势图 -->
+                <div class="chart-container">
+                    <div class="chart-label">3年周线 + MA50</div>
                     <canvas id="stockChartCycle"></canvas>
+                </div>
+                <!-- 辅助信息栏 (水平排列) -->
+                <div class="stock-metrics-bar">
+                    <div class="metric-item">
+                        <span class="metric-label">52周</span>
+                        <span id="metric-year-range" class="metric-value">--</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">成交量</span>
+                        <span id="metric-volume" class="metric-value">--</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">前收</span>
+                        <span id="metric-prev-close" class="metric-value">--</span>
+                    </div>
+                    <div class="metric-item" id="metric-analyst-container" style="display:none;">
+                        <span class="metric-label">分析师</span>
+                        <span id="metric-analyst-target" class="metric-value">--</span>
+                    </div>
+                    <div class="metric-item" id="metric-earnings-container" style="display:none;">
+                        <span class="metric-label">财报</span>
+                        <span id="metric-earnings" class="metric-value">--</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -312,100 +310,148 @@
     .up-bg { background: rgba(231, 76, 60, 0.15); border-color: rgba(231, 76, 60, 0.3); }
     .down-bg { background: rgba(46, 204, 113, 0.15); border-color: rgba(46, 204, 113, 0.3); }
 
-    /* Stock Carousel - Value Investing Layout (Compact) */
+    /* ========== 股票卡片 - 重构版 ========== */
     .stock-carousel {
         flex: 1;
-        display: flex; gap: 10px;
-        background: rgba(0,0,0,0.3);
-        border-radius: 8px;
-        padding: 5px 10px; /* 更紧凑的内边距 */
+        display: flex; gap: 15px;
+        background: linear-gradient(135deg, rgba(25,25,30,0.95), rgba(15,15,20,0.9));
+        border-radius: 10px;
+        padding: 10px 15px;
         margin: 0 15px 5px 15px; 
         align-items: stretch; overflow: hidden;
-        position: relative; transition: box-shadow 0.5s ease;
+        position: relative; 
+        border: 1px solid rgba(255,255,255,0.08);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
     }
     .stock-carousel.status-buy-zone {
-        box-shadow: inset 0 0 20px rgba(255, 215, 0, 0.3); border: 1px solid rgba(255, 215, 0, 0.3);
+        border-color: rgba(255, 215, 0, 0.4);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3), inset 0 0 30px rgba(255, 215, 0, 0.15);
     }
     .stock-carousel.status-sell-zone {
-        box-shadow: inset 0 0 20px rgba(231, 76, 60, 0.3); border: 1px solid rgba(231, 76, 60, 0.3);
+        border-color: rgba(231, 76, 60, 0.4);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3), inset 0 0 30px rgba(231, 76, 60, 0.15);
     }
 
-    /* Left Panel: Metrics & Gauge */
-    .stock-value-panel {
-        flex: 0 0 40%;
-        display: flex; flex-direction: column; justify-content: space-between;
+    /* ===== 左侧：核心信息区 ===== */
+    .stock-info-panel {
+        flex: 0 0 45%;
+        display: flex; flex-direction: column; 
+        justify-content: center; gap: 8px;
+        padding-right: 15px;
+        border-right: 1px solid rgba(255,255,255,0.1);
     }
 
-    /* Row 1: Header */
-    .stock-row-header {
-        display: flex; justify-content: space-between; align-items: flex-start;
-        margin-bottom: 0;
+    /* 第1层：股票标识 */
+    .stock-identity { display: flex; flex-direction: column; gap: 2px; }
+    .stock-name { 
+        font-size: 1.3rem; font-weight: 700; color: #fff; 
+        line-height: 1.2; white-space: nowrap; 
+        overflow: hidden; text-overflow: ellipsis; 
+        letter-spacing: 0.5px;
     }
-    .stock-name-wrapper { display: flex; align-items: center; gap: 5px; }
-    .stock-name { font-size: 1.1rem; font-weight: bold; color: #fff; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
+    .stock-meta { display: flex; align-items: center; gap: 8px; }
+    .stock-symbol { 
+        font-size: 0.8rem; color: #888; 
+        font-family: 'SF Mono', 'Consolas', monospace; 
+    }
     .stock-badge { 
-        display: inline-block; font-size: 0.6rem; padding: 0 4px; border-radius: 3px; height: 16px; line-height: 16px;
+        display: inline-block; font-size: 0.65rem; 
+        padding: 2px 6px; border-radius: 4px; 
+        font-weight: 500;
     }
-    .badge-holding { background: rgba(230, 126, 34, 0.3); color: #e67e22; border: 1px solid rgba(230, 126, 34, 0.5); }
-    .badge-watching { background: rgba(52, 152, 219, 0.3); color: #3498db; border: 1px solid rgba(52, 152, 219, 0.5); }
-    .stock-change { font-size: 0.8rem; }
-
-    /* Row 2: Main Data (Symbol | Price | Target) */
-    .stock-row-main {
-        display: flex;
-        align-items: baseline; /* 基线对齐 */
-        justify-content: space-between;
-        border-bottom: 1px solid rgba(255,255,255,0.1);
-        padding-bottom: 2px;
-        margin-bottom: 2px;
+    .badge-holding { 
+        background: rgba(230, 126, 34, 0.25); 
+        color: #f39c12; 
+        border: 1px solid rgba(230, 126, 34, 0.4); 
     }
-    .col-symbol { color: #888; font-size: 0.75rem; font-family: monospace; flex: 0 0 auto; }
-    .col-price { font-size: 1.5rem; font-weight: 700; line-height: 1; flex: 1; text-align: center; }
-    .col-target { text-align: right; flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; }
-    
-    .target-val-group { display: flex; flex-direction: column; align-items: flex-end; }
-    .target-val { font-size: 1.0rem; font-weight: 600; color: #eee; line-height: 1; }
-    .target-diff { font-size: 0.7rem; }
+    .badge-watching { 
+        background: rgba(52, 152, 219, 0.25); 
+        color: #5dade2; 
+        border: 1px solid rgba(52, 152, 219, 0.4); 
+    }
 
-    .label-mini { font-size: 0.6rem; color: #aaa; }
+    /* 第2层：价格核心区 (Hero) */
+    .stock-hero { 
+        display: flex; flex-direction: column; 
+        align-items: flex-start; gap: 2px;
+        padding: 5px 0;
+    }
+    .hero-price { 
+        font-size: 2.2rem; font-weight: 800; 
+        line-height: 1; letter-spacing: -1px;
+        font-family: 'SF Pro Display', 'Segoe UI', sans-serif;
+    }
+    .hero-change { 
+        display: flex; align-items: baseline; gap: 6px;
+        font-size: 1rem; font-weight: 600;
+    }
+    .hero-change span { transition: color 0.3s ease; }
 
-    /* Row 3: Holding (Conditional) */
-    .stock-row-holding {
-        display: flex; justify-content: space-between; align-items: center;
+    /* 第3层：目标价区 */
+    .stock-target-section {
+        display: flex; flex-direction: column; gap: 4px;
+        padding-top: 8px;
+        border-top: 1px dashed rgba(255,255,255,0.1);
+    }
+    .target-row {
+        display: flex; align-items: baseline; gap: 10px;
+    }
+    .target-label { 
+        font-size: 0.75rem; color: #888; 
+        min-width: 55px;
+    }
+    .target-value { 
+        font-size: 1.1rem; font-weight: 600; color: #eee; 
+    }
+    .target-diff { 
+        font-size: 0.85rem; font-weight: 600;
+        padding: 2px 6px; border-radius: 4px;
         background: rgba(255,255,255,0.05);
-        padding: 2px 6px;
-        border-radius: 3px;
-        margin-bottom: 2px;
     }
+    .holding-row { margin-top: 2px; }
+    .holding-value { font-size: 1rem; font-weight: 600; }
+    .holding-percent { font-size: 0.8rem; }
 
-    /* Row 4: Extra Grid */
-    .stock-grid-extra {
-        display: grid; grid-template-columns: 1fr 1fr; gap: 1px 5px;
-        font-size: 0.65rem; color: #aaa; 
-        margin-bottom: 2px; 
-    }
-    .stock-grid-extra > div span { color: #ddd; }
-
-    /* Gauge */
-    .price-gauge-container { margin-top: auto; padding-top: 2px; }
-    .gauge-label-row { display: flex; justify-content: space-between; font-size: 0.6rem; margin-top: 1px; }
-    .gauge-track { height: 4px; background: #333; border-radius: 2px; position: relative; }
-    .gauge-bar {
-        position: absolute; left: 0; top: 0; bottom: 0; right: 0; border-radius: 2px;
-        background: linear-gradient(90deg, rgba(46,204,113,0.3) 0%, rgba(46,204,113,0.1) 30%, rgba(231,76,60,0.1) 70%, rgba(231,76,60,0.3) 100%);
-    }
-    .gauge-marker { position: absolute; top: -1px; bottom: -1px; width: 2px; z-index: 2; }
-    .gauge-marker.buy { background: #2ecc71; }
-    .gauge-marker.sell { background: #e74c3c; }
-    .gauge-cursor {
-        position: absolute; top: -2px; bottom: -2px; width: 3px; background: #fff;
-        box-shadow: 0 0 3px rgba(255,255,255,0.8); z-index: 3; border-radius: 1px; transition: left 0.5s ease;
+    /* ===== 右侧：图表 + 辅助信息 ===== */
+    .stock-chart-section {
+        flex: 1; display: flex; flex-direction: column;
+        min-width: 0; gap: 6px;
     }
     
-    /* Chart Styles */
-    .stock-chart-panel { flex: 1; display: flex; min-width: 0; }
-    .chart-box { flex: 1; position: relative; background: rgba(255,255,255,0.03); border-radius: 4px; padding: 2px; min-width: 0; }
-    .chart-label { position: absolute; top: 3px; left: 5px; font-size: 8px; color: #888; pointer-events: none; z-index: 1; }
+    /* 图表容器 */
+    .chart-container { 
+        flex: 1; position: relative; 
+        background: rgba(255,255,255,0.02); 
+        border-radius: 6px; 
+        padding: 3px; min-width: 0;
+        min-height: 60px;
+    }
+    .chart-label { 
+        position: absolute; top: 4px; left: 8px; 
+        font-size: 0.6rem; color: #666; 
+        pointer-events: none; z-index: 1; 
+        text-transform: uppercase; letter-spacing: 0.5px;
+    }
+
+    /* 辅助信息栏 */
+    .stock-metrics-bar {
+        display: flex; gap: 12px; flex-wrap: wrap;
+        padding: 6px 8px;
+        background: rgba(255,255,255,0.03);
+        border-radius: 6px;
+    }
+    .metric-item {
+        display: flex; flex-direction: column; gap: 1px;
+        min-width: 50px;
+    }
+    .metric-label { 
+        font-size: 0.6rem; color: #666; 
+        text-transform: uppercase; letter-spacing: 0.3px;
+    }
+    .metric-value { 
+        font-size: 0.8rem; color: #ccc; font-weight: 500;
+        font-family: 'SF Mono', 'Consolas', monospace;
+    }
 
     /* Photo Styles ... unchanged ... */
     /* ... (copy existing photo styles) ... */
@@ -698,20 +744,24 @@
                 if (el) el.style[prop] = val;
             };
 
-            // 1. Header Info
+            // 1. 股票基本信息
             const isUp = (data.change || 0) >= 0;
             const color = isUp ? '#e74c3c' : '#2ecc71';
             const sign = isUp ? '+' : '';
+            const arrow = isUp ? '▲' : '▼';
             
             setText('stock-name', data.name || '--');
             setText('stock-symbol', data.symbol || '--');
             
+            // 价格 (Hero区)
             setText('stock-price', (data.price || 0).toFixed(2));
             setStyle('stock-price', 'color', color);
 
-            const changeText = `${sign}${(data.change || 0).toFixed(2)} (${sign}${(data.change_percent || 0).toFixed(2)}%)`;
-            setText('stock-change', changeText);
-            setStyle('stock-change', 'color', color);
+            // 涨跌幅 (分开显示)
+            setText('stock-change-val', `${arrow} ${sign}${Math.abs(data.change || 0).toFixed(2)}`);
+            setText('stock-change-pct', `(${sign}${(data.change_percent || 0).toFixed(2)}%)`);
+            setStyle('stock-change-val', 'color', color);
+            setStyle('stock-change-pct', 'color', color);
 
             // 2. Unified Target Logic & Badge
             const badge = document.getElementById('stock-type-badge');
@@ -795,10 +845,7 @@
                 setStyle('metric-holding-percent', 'color', gainColor);
             }
 
-            // 5. Gauge
-            updateGauge(data.price, data.target_buy_price, data.target_sell_price);
-
-            // 6. Visual Feedback
+            // 5. Visual Feedback (买入区/卖出区高亮)
             const container = document.getElementById('stock-carousel');
             if (container) {
                 container.classList.remove('status-buy-zone', 'status-sell-zone');
@@ -810,7 +857,7 @@
                 }
             }
 
-            // 7. Chart
+            // 6. 渲染趋势图
             renderChart('stockChartCycle', data.history_3y || [], data.ma_250 || [], color);
             
         } catch (e) { 
@@ -847,20 +894,6 @@
             // Red if close or reached
             diffEl.style.color = diffPercent >= -5 ? '#e74c3c' : '#aaa';
         }
-    }
-
-    function updateGauge(current, buy, sell) {
-        if (!buy || !sell) return;
-        const min = buy * 0.8;
-        const max = sell * 1.2;
-        const range = max - min;
-        const getPos = (val) => {
-            let pct = ((val - min) / range) * 100;
-            return Math.max(0, Math.min(100, pct));
-        };
-        document.getElementById('gauge-marker-buy').style.left = getPos(buy) + '%';
-        document.getElementById('gauge-marker-sell').style.left = getPos(sell) + '%';
-        document.getElementById('gauge-cursor').style.left = getPos(current) + '%';
     }
 
     function renderChart(canvasId, points, maPoints, lineColor) {
