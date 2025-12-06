@@ -58,46 +58,58 @@
             width: 100vw;
             height: 100vh;
             display: flex;
-            flex-direction: column;
         }
         
-        .header {
-            background: rgba(0, 0, 0, 0.8);
-            padding: 10px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        /* 浮动控制按钮 - 悬浮在相册右上角 */
+        .floating-controls {
+            position: fixed;
+            top: 15px;
+            right: 430px; /* 相册宽度 400px + 边距 */
             z-index: 1000;
-            position: relative;
-        }
-        
-        .header.hidden {
-            display: none;
-        }
-        
-        .logo {
-            font-size: 18px;
-            font-weight: bold;
-        }
-        
-        .controls {
             display: flex;
-            gap: 10px;
+            gap: 8px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
         }
         
-        button {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: #fff;
-            padding: 8px 16px;
-            border-radius: 4px;
+        .floating-controls.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        .floating-btn {
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: rgba(255, 255, 255, 0.9);
+            padding: 8px 14px;
+            border-radius: 20px;
             cursor: pointer;
-            font-size: 14px;
-            transition: background 0.2s;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
         
-        button:hover {
-            background: rgba(255, 255, 255, 0.2);
+        .floating-btn:hover {
+            background: rgba(0, 0, 0, 0.8);
+            border-color: rgba(255, 255, 255, 0.3);
+            transform: translateY(-1px);
+        }
+        
+        .floating-btn svg {
+            width: 14px;
+            height: 14px;
+            fill: currentColor;
+        }
+        
+        /* 响应式：堆叠布局时调整位置 */
+        .layout-stacked .floating-controls {
+            right: 20px;
         }
         
         .content {
@@ -113,9 +125,12 @@
         
         .sidebar {
             width: 400px;
-            background: rgba(0, 0, 0, 0.9);
-            border-left: 1px solid rgba(255, 255, 255, 0.1);
-            overflow-y: auto;
+            background: linear-gradient(135deg, #0a0a0a 0%, #111 100%);
+            border-left: 1px solid rgba(255, 255, 255, 0.08);
+            overflow: hidden;
+            padding: 20px 15px;
+            display: flex;
+            flex-direction: column;
         }
         
         .layout-side-by-side .main-content {
@@ -137,6 +152,7 @@
         .layout-stacked .sidebar {
             width: 100%;
             height: 40%;
+            padding: 15px 20px;
         }
         
         .youtube-container {
@@ -153,18 +169,22 @@
         
         .photo-container {
             width: 100%;
-            height: 100%;
+            flex: 1;
             position: relative;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: #000;
+            background: transparent;
+            border-radius: 12px;
+            overflow: hidden;
         }
         
         .photo-image {
-            max-width: 100%;
-            max-height: 100%;
+            max-width: calc(100% - 10px);
+            max-height: calc(100% - 80px); /* 为底部信息框留空间 */
             object-fit: contain;
+            border-radius: 6px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
         }
 
         .photo-wrapper {
@@ -176,10 +196,11 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            padding: 0;
             opacity: 0;
             transition: opacity 1s ease-in-out;
             z-index: 0;
-            pointer-events: none; /* Allow clicks to pass through to nav buttons if needed, but nav buttons are absolute z-index 100 */
+            pointer-events: none;
         }
 
         .photo-wrapper.active {
@@ -189,9 +210,11 @@
         }
 
         .photo-video {
-            max-width: 100%;
-            max-height: 100%;
+            max-width: calc(100% - 10px);
+            max-height: calc(100% - 80px);
             object-fit: contain;
+            border-radius: 6px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
         }
         
         /* Transition Effects */
@@ -231,58 +254,45 @@
         .transition-zoom-out .photo-wrapper.active { transform: scale(1); opacity: 1; }
         .transition-zoom-out .photo-wrapper.exit { transform: scale(0.8); opacity: 0; }
         
+        /* 照片信息框 - 底部窄条设计 */
         .photo-metadata {
             position: absolute;
-            bottom: 30px;
-            left: 30px;
-            /* 移除背景色和边框，改为文字阴影 */
-            background: transparent;
-            padding: 0;
-            border-radius: 0;
-            color: #fff;
+            bottom: 12px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            color: rgba(255, 255, 255, 0.85);
             z-index: 10;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            pointer-events: none; /* 不阻挡点击 */
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            opacity: 0.9;
-            max-width: 80%;
-        }
-
-        .photo-metadata .meta-primary {
-            font-size: 1.4rem;
-            font-weight: 600;
+            pointer-events: none;
+            font-size: 0.75rem;
             display: flex;
             align-items: center;
-            gap: 8px;
-        }
-        
-        .photo-metadata .meta-secondary {
-            font-size: 0.95rem;
-            font-weight: 400;
-            opacity: 0.9;
-            display: flex;
-            align-items: center;
-            gap: 15px; /* 增加间距 */
-            margin-top: 4px;
+            gap: 6px;
+            flex-wrap: wrap;
         }
         
         .photo-metadata .meta-item {
-            display: flex;
+            display: inline-flex;
             align-items: center;
             gap: 4px;
-        }
-
-        .photo-metadata .meta-icon {
-            font-size: 1.1em;
-            opacity: 0.8;
+            white-space: nowrap;
         }
         
-        /* 隐藏计数器 */
-        .photo-metadata .meta-counter {
-            display: none; 
+        .photo-metadata .meta-icon-img {
+            width: 12px;
+            height: 12px;
+            opacity: 0.7;
+        }
+        
+        .photo-metadata .meta-sep {
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 0.7rem;
         }
 
         .photo-metadata.hidden {
@@ -293,25 +303,41 @@
             position: absolute;
             top: 50%;
             transform: translateY(-50%);
-            background: rgba(0, 0, 0, 0.5);
-            border: none;
-            color: #fff;
-            font-size: 24px;
-            padding: 20px 15px;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 18px;
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             cursor: pointer;
             z-index: 100;
+            transition: all 0.2s ease;
+            opacity: 0;
+        }
+        
+        .photo-container:hover .photo-nav {
+            opacity: 1;
         }
         
         .photo-nav:hover {
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.6);
+            color: #fff;
+            transform: translateY(-50%) scale(1.1);
         }
         
         .photo-nav.prev {
-            left: 20px;
+            left: 15px;
         }
         
         .photo-nav.next {
-            right: 20px;
+            right: 15px;
         }
         
         .loading {
@@ -332,22 +358,24 @@
 </head>
 <body>
     <div class="container layout-{{ layout }}">
-        <div class="header" id="header">
-            <div class="logo">Lookoukwindow</div>
-            <div class="controls">
-                <button onclick="toggleFullscreen()">全屏</button>
-                <button onclick="toggleMetadata()">切换信息</button>
-                <button onclick="window.location.href='/settings'">设置</button>
-            </div>
-        </div>
         <div class="content">
             {% block content %}{% endblock %}
+        </div>
+        
+        <!-- 浮动控制按钮 -->
+        <div class="floating-controls" id="floating-controls">
+            <button class="floating-btn" onclick="toggleFullscreen()" title="切换全屏">
+                <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+                全屏
+            </button>
+            <button class="floating-btn" onclick="window.location.href='/settings'" title="打开设置">
+                <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+                设置
+            </button>
         </div>
     </div>
     
     <script>
-        let headerVisible = true;
-        
         function toggleFullscreen() {
             if (!document.fullscreenElement) {
                 document.documentElement.requestFullscreen();
@@ -356,25 +384,35 @@
             }
         }
         
-        function toggleMetadata() {
-            const metadata = document.querySelector('.photo-metadata');
-            if (metadata) {
-                metadata.classList.toggle('hidden');
+        // 浮动按钮自动显示/隐藏（3秒无操作后隐藏）
+        let controlsTimer;
+        const floatingControls = document.getElementById('floating-controls');
+        
+        function showControls() {
+            if (floatingControls) {
+                floatingControls.classList.add('visible');
+                clearTimeout(controlsTimer);
+                controlsTimer = setTimeout(() => {
+                    floatingControls.classList.remove('visible');
+                }, 3000);
             }
         }
         
-        // 隐藏鼠标和头部（5秒无操作后）
-        let mouseTimer;
-        document.addEventListener('mousemove', () => {
-            const header = document.getElementById('header');
-            if (header) {
-                header.classList.remove('hidden');
-                clearTimeout(mouseTimer);
-                mouseTimer = setTimeout(() => {
-                    header.classList.add('hidden');
-                }, 5000);
-            }
-        });
+        document.addEventListener('mousemove', showControls);
+        document.addEventListener('touchstart', showControls);
+        
+        // 鼠标悬停在按钮上时保持显示
+        if (floatingControls) {
+            floatingControls.addEventListener('mouseenter', () => {
+                clearTimeout(controlsTimer);
+                floatingControls.classList.add('visible');
+            });
+            floatingControls.addEventListener('mouseleave', () => {
+                controlsTimer = setTimeout(() => {
+                    floatingControls.classList.remove('visible');
+                }, 1500);
+            });
+        }
     </script>
     {% block extra_js %}{% endblock %}
 </body>
