@@ -104,10 +104,6 @@
                 <!-- 辅助信息栏 (水平排列) -->
                 <div class="stock-metrics-bar">
                     <div class="metric-item">
-                        <span class="metric-label">52周</span>
-                        <span id="metric-year-range" class="metric-value">--</span>
-                    </div>
-                    <div class="metric-item">
                         <span class="metric-label">成交量</span>
                         <span id="metric-volume" class="metric-value">--</span>
                     </div>
@@ -116,7 +112,7 @@
                         <span id="metric-prev-close" class="metric-value">--</span>
                     </div>
                     <div class="metric-item" id="metric-analyst-container" style="display:none;">
-                        <span class="metric-label">分析师</span>
+                        <span class="metric-label">分析师目标价</span>
                         <span id="metric-analyst-target" class="metric-value">--</span>
                     </div>
                     <div class="metric-item" id="metric-earnings-container" style="display:none;">
@@ -777,11 +773,7 @@
             // Update Unified Target Display
             updateUnifiedTarget(targetPrice, data.price, isBuyTarget);
 
-            // 3. Extra Info
-            const low = (data.year_low || 0).toFixed(2);
-            const high = (data.year_high || 0).toFixed(2);
-            setText('metric-year-range', `${low}-${high}`);
-            
+            // 3. 辅助信息
             // Vol
             let volStr = '--';
             if (data.volume !== undefined && data.volume !== null) {
@@ -844,8 +836,14 @@
                 }
             }
 
-            // 6. 渲染趋势图
-            renderChart('stockChartCycle', data.history_3y || [], data.ma_250 || [], color);
+            // 6. 渲染趋势图（含52周高低点标注）
+            const yearHighLow = {
+                high: data.year_high,
+                highDate: data.year_high_date,
+                low: data.year_low,
+                lowDate: data.year_low_date
+            };
+            renderChart('stockChartCycle', data.history_3y || [], data.ma_250 || [], color, yearHighLow);
             
         } catch (e) { 
             console.error(`个股 ${stock ? stock.name : 'unknown'} 加载失败:`, e); 
@@ -886,29 +884,128 @@
         }
     }
 
-    function renderChart(canvasId, points, maPoints, lineColor) {
+    function renderChart(canvasId, points, maPoints, lineColor, yearHighLow = null) {
         const ctx = document.getElementById(canvasId).getContext('2d');
         if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
         if (!points || points.length === 0) return;
+        
         const labels = points.map(p => p.t);
         const data = points.map(p => p.v);
         const maData = maPoints ? maPoints.map(p => p.v) : [];
+        
+        // 创建点半径和颜色数组，用于标注52周高低点
+        const pointRadii = new Array(data.length).fill(0);
+        const pointColors = new Array(data.length).fill('transparent');
+        const pointLabels = new Array(data.length).fill(null);
+        
+        if (yearHighLow && yearHighLow.highDate && yearHighLow.lowDate) {
+            // 找到52周高点在图表中的位置
+            const highMonth = yearHighLow.highDate.substring(0, 7); // "YYYY-MM"
+            const highIdx = labels.findIndex(l => l === highMonth);
+            if (highIdx >= 0) {
+                pointRadii[highIdx] = 5;
+                pointColors[highIdx] = '#e74c3c';
+                pointLabels[highIdx] = { type: 'high', price: yearHighLow.high, date: yearHighLow.highDate };
+            }
+            
+            // 找到52周低点在图表中的位置
+            const lowMonth = yearHighLow.lowDate.substring(0, 7);
+            const lowIdx = labels.findIndex(l => l === lowMonth);
+            if (lowIdx >= 0) {
+                pointRadii[lowIdx] = 5;
+                pointColors[lowIdx] = '#2ecc71';
+                pointLabels[lowIdx] = { type: 'low', price: yearHighLow.low, date: yearHighLow.lowDate };
+            }
+        }
+        
         chartInstances[canvasId] = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: labels,
                 datasets: [
-                    { label: 'Price', data: data, borderColor: lineColor, backgroundColor: 'rgba(0,0,0,0)', borderWidth: 1.5, pointRadius: 0, tension: 0.2 },
-                    { label: 'MA50', data: maData, borderColor: 'rgba(255, 215, 0, 0.6)', borderWidth: 1, pointRadius: 0, borderDash: [5, 5], tension: 0.2 }
+                    { 
+                        label: 'Price', 
+                        data: data, 
+                        borderColor: lineColor, 
+                        backgroundColor: 'rgba(0,0,0,0)', 
+                        borderWidth: 1.5, 
+                        pointRadius: pointRadii,
+                        pointBackgroundColor: pointColors,
+                        pointBorderColor: pointColors,
+                        tension: 0.2 
+                    },
+                    { 
+                        label: 'MA50', 
+                        data: maData, 
+                        borderColor: 'rgba(255, 215, 0, 0.6)', 
+                        borderWidth: 1, 
+                        pointRadius: 0, 
+                        borderDash: [5, 5], 
+                        tension: 0.2 
+                    }
                 ]
             },
             options: {
-                responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+                responsive: true, 
+                maintainAspectRatio: false, 
+                plugins: { 
+                    legend: { display: false },
+                    tooltip: {
+                        enabled: true,
+                        callbacks: {
+                            label: function(context) {
+                                const idx = context.dataIndex;
+                                const label = pointLabels[idx];
+                                if (label) {
+                                    const typeText = label.type === 'high' ? '52周最高' : '52周最低';
+                                    return `${typeText}: ${label.price} (${label.date})`;
+                                }
+                                return `价格: ${context.parsed.y}`;
+                            }
+                        }
+                    }
+                },
                 scales: {
                     x: { display: true, ticks: { color: '#555', font: {size: 9}, maxTicksLimit: 6 }, grid: { display: false } },
                     y: { display: true, position: 'right', grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#555', font: {size: 9} } }
-                }, animation: { duration: 0 }
-            }
+                }, 
+                animation: { duration: 0 }
+            },
+            plugins: [{
+                // 自定义插件：在52周高低点上方绘制标签
+                id: 'yearHighLowLabels',
+                afterDatasetsDraw: function(chart) {
+                    const ctx = chart.ctx;
+                    const meta = chart.getDatasetMeta(0);
+                    
+                    pointLabels.forEach((label, idx) => {
+                        if (label && meta.data[idx]) {
+                            const point = meta.data[idx];
+                            const x = point.x;
+                            const y = point.y;
+                            
+                            ctx.save();
+                            ctx.font = 'bold 9px sans-serif';
+                            ctx.textAlign = 'center';
+                            
+                            if (label.type === 'high') {
+                                ctx.fillStyle = '#e74c3c';
+                                ctx.fillText(`${label.price}`, x, y - 10);
+                                ctx.font = '8px sans-serif';
+                                ctx.fillStyle = '#888';
+                                ctx.fillText('52H', x, y - 20);
+                            } else {
+                                ctx.fillStyle = '#2ecc71';
+                                ctx.fillText(`${label.price}`, x, y + 18);
+                                ctx.font = '8px sans-serif';
+                                ctx.fillStyle = '#888';
+                                ctx.fillText('52L', x, y + 28);
+                            }
+                            ctx.restore();
+                        }
+                    });
+                }
+            }]
         });
     }
 

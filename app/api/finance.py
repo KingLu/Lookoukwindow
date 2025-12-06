@@ -58,6 +58,8 @@ class StockData(BaseModel):
     # 新增字段
     year_high: float = 0.0
     year_low: float = 0.0
+    year_high_date: Optional[str] = None  # 52周最高价日期
+    year_low_date: Optional[str] = None   # 52周最低价日期
     volume: int = 0
     prev_close: float = 0.0
     analyst_target_price: Optional[float] = None
@@ -263,7 +265,9 @@ async def get_stock(
 
         # 4. 获取3年周线数据 (3y, 1wk) - 用于周期分析
         history_3y_points = []
-        ma_250_points = [] # 实际上这里用 50周均线 近似 年线 (52周)
+        ma_250_points = []  # 50周均线 近似 年线 (52周)
+        year_high_date = None
+        year_low_date = None
         
         try:
             # 获取3年数据，周线
@@ -273,12 +277,22 @@ async def get_stock(
                 # 计算 MA50 (50周均线 ≈ 年线)
                 hist['MA50'] = hist['Close'].rolling(window=50).mean()
                 
-                # 降采样/格式化
-                # 3年约150周，数据量适中，不需要强力降采样
+                # 获取最近52周数据，找出高低点日期
+                one_year_ago = datetime.now() - timedelta(days=365)
+                recent_year = hist[hist.index >= one_year_ago]
+                if not recent_year.empty:
+                    # 找到52周最高价日期
+                    high_idx = recent_year['High'].idxmax()
+                    year_high_date = high_idx.strftime("%Y-%m-%d") if high_idx else None
+                    # 找到52周最低价日期
+                    low_idx = recent_year['Low'].idxmin()
+                    year_low_date = low_idx.strftime("%Y-%m-%d") if low_idx else None
+                
+                # 降采样/格式化 (3年约150周，数据量适中)
                 for idx, row in hist.iterrows():
                     val = row['Close']
                     ma = row['MA50']
-                    if val == val: # not NaN
+                    if val == val:  # not NaN
                         t_str = idx.strftime("%Y-%m")
                         history_3y_points.append(StockPoint(t=t_str, v=round(val, 2)))
                         
@@ -286,7 +300,7 @@ async def get_stock(
                         if ma == ma:
                             ma_250_points.append(StockPoint(t=t_str, v=round(ma, 2)))
                         else:
-                             ma_250_points.append(StockPoint(t=t_str, v=0)) # 占位
+                            ma_250_points.append(StockPoint(t=t_str, v=0))  # 占位
 
         except Exception as e:
             logger.warning(f"Failed to fetch history for {symbol}: {e}")
@@ -313,6 +327,8 @@ async def get_stock(
             # 新增扩展数据
             "year_high": round(year_high, 2),
             "year_low": round(year_low, 2),
+            "year_high_date": year_high_date,
+            "year_low_date": year_low_date,
             "volume": volume,
             "prev_close": round(prev_close or 0.0, 2),
             "analyst_target_price": round(analyst_target, 2) if analyst_target else None,
