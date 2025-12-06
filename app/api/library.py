@@ -75,7 +75,7 @@ async def update_photo(
 @router.post("/photos/{photo_id}/rotate")
 async def rotate_photo(
     photo_id: str,
-    degree: int = Body(..., embed=True),
+    degree: int = 90,
     service: LibraryService = Depends(get_library_service),
     user = Depends(get_current_user)
 ):
@@ -83,6 +83,41 @@ async def rotate_photo(
     result = service.rotate_photo(photo_id, degree)
     if not result:
         raise HTTPException(status_code=404, detail="照片不存在或无法旋转")
+    return {"status": "success"}
+
+@router.post("/photos/{photo_id}/crop")
+async def crop_photo(
+    photo_id: str,
+    x: int = Body(...),
+    y: int = Body(...),
+    width: int = Body(...),
+    height: int = Body(...),
+    service: LibraryService = Depends(get_library_service),
+    user = Depends(get_current_user)
+):
+    """剪裁照片
+    
+    Args:
+        x: 剪裁区域左上角 X 坐标
+        y: 剪裁区域左上角 Y 坐标
+        width: 剪裁区域宽度
+        height: 剪裁区域高度
+    """
+    result = service.crop_photo(photo_id, x, y, width, height)
+    if not result:
+        raise HTTPException(status_code=404, detail="照片不存在或无法剪裁")
+    return {"status": "success"}
+
+@router.post("/photos/{photo_id}/reset")
+async def reset_photo(
+    photo_id: str,
+    service: LibraryService = Depends(get_library_service),
+    user = Depends(get_current_user)
+):
+    """重置照片编辑，恢复原图"""
+    result = service.reset_photo_edits(photo_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="照片不存在或无法重置")
     return {"status": "success"}
 
 @router.delete("/photos/{photo_id}")
@@ -121,7 +156,15 @@ async def serve_thumbnail(
         path = service.library_dir / filename
     if not path.exists():
         raise HTTPException(status_code=404, detail="Not found")
-    return FileResponse(path)
+    # 禁用缓存，确保编辑后立即显示新图片
+    return FileResponse(
+        path,
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0"
+        }
+    )
 
 @router.get("/photos/{filename}/web")
 async def serve_web(
@@ -133,4 +176,12 @@ async def serve_web(
         path = service.library_dir / filename
     if not path.exists():
         raise HTTPException(status_code=404, detail="Not found")
-    return FileResponse(path)
+    # 禁用缓存，确保编辑后立即显示新图片
+    return FileResponse(
+        path,
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0"
+        }
+    )
