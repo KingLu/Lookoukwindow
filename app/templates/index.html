@@ -1051,6 +1051,9 @@
             photos = await res.json();
             const container = document.getElementById('photo-container');
             if (photos.length > 0) { 
+                // 立即开始预加载前几张图片
+                preloadNextPhotos(-1, 5);
+                
                 container.innerHTML = `
                     <div id="photo-stage" style="width:100%;height:100%;position:relative;" class="transition-${slideshowTransition}"></div>
                     <button class="photo-nav prev" onclick="prevPhoto()">‹</button>
@@ -1060,67 +1063,151 @@
                 displayPhoto(0); 
                 startSlideshow(); 
             } else { 
-                container.innerHTML = '<div class="error">暂无照片<br>请在“设置”中创建相册并上传照片</div>'; 
+                container.innerHTML = '<div class="error">暂无照片<br>请在"设置"中创建相册并上传照片</div>'; 
             }
         } catch(e) { console.error("加载照片失败", e); }
     }
 
+    // 预加载缓存：存储已预加载的图片对象
+    const preloadCache = new Map();
+    
+    // 获取图片 URL（带缓存 buster）
+    function getPhotoSrc(photo) {
+        let src = photo.web_url || photo.url;
+        const ts = photo.updated_at ? new Date(photo.updated_at).getTime() : (photo.created_at ? new Date(photo.created_at).getTime() : '');
+        if (ts) src += (src.includes('?') ? '&' : '?') + `v=${ts}`;
+        return src;
+    }
+    
     function displayPhoto(index) {
         if (photos.length === 0) return;
         currentPhotoIndex = index;
         const photo = photos[index];
         const stage = document.getElementById('photo-stage');
         if (!stage) return; 
-        const wrapper = document.createElement('div');
-        wrapper.className = 'photo-wrapper enter'; 
-        let contentHtml = '';
-        if (photo.type === 'video' || (photo.filename && photo.filename.match(/\.(mp4|mov)$/i))) {
-             contentHtml = `<video src="${photo.url}" class="photo-video" autoplay muted loop playsinline style="max-width:100%;max-height:100%;"></video>`;
-        } else {
-             let src = photo.web_url || photo.url;
-             const ts = photo.updated_at ? new Date(photo.updated_at).getTime() : (photo.created_at ? new Date(photo.created_at).getTime() : '');
-             if (ts) src += (src.includes('?') ? '&' : '?') + `v=${ts}`;
-             contentHtml = `<img src="${src}" class="photo-image" loading="eager">`;
-        }
-        wrapper.innerHTML = contentHtml;
-        stage.appendChild(wrapper);
-        wrapper.offsetHeight; 
         
-        // Determine effect based on setting
+        const isVideo = photo.type === 'video' || (photo.filename && photo.filename.match(/\.(mp4|mov)$/i));
+        
+        // 确定过渡效果
         let effect = 'effect-fade';
         if (slideshowTransition === 'slide-left' || slideshowTransition === 'slide-right') effect = 'effect-slide-left';
         else if (slideshowTransition === 'slide-up' || slideshowTransition === 'slide-down') effect = 'effect-push';
         else if (slideshowTransition === 'zoom-in' || slideshowTransition === 'zoom-out') effect = 'effect-zoom';
-        else if (slideshowTransition === 'none') effect = 'effect-fade'; // Fallback to fade for none, or could handle specifically
         
-        wrapper.classList.add(effect);
-        if (slideshowTransition === 'none') wrapper.style.transition = 'none';
-
-        const oldActive = stage.querySelector('.photo-wrapper.active');
-        if (oldActive) {
-            oldActive.classList.remove('active');
-            oldActive.classList.add('exit');
-            oldActive.classList.add(effect); 
+        // 激活新照片的函数
+        const activateWrapper = (wrapper) => {
+            wrapper.classList.add(effect);
+            if (slideshowTransition === 'none') wrapper.style.transition = 'none';
             
-            // If 'none', remove immediately
-            const delay = slideshowTransition === 'none' ? 0 : 1500;
-            setTimeout(() => { if(oldActive.parentNode === stage) stage.removeChild(oldActive); }, delay); 
+            // 移除旧的 active
+            const oldActive = stage.querySelector('.photo-wrapper.active');
+            if (oldActive) {
+                oldActive.classList.remove('active');
+                oldActive.classList.add('exit');
+                oldActive.classList.add(effect);
+                const delay = slideshowTransition === 'none' ? 0 : 1500;
+                setTimeout(() => { if(oldActive.parentNode === stage) stage.removeChild(oldActive); }, delay);
+            }
+            
+            wrapper.classList.remove('enter');
+            wrapper.classList.add('active');
+            updateMetadata(photo, index);
+            
+            // 预加载后续图片
+            preloadNextPhotos(index, 3);
+        };
+        
+        // 创建 wrapper
+        const wrapper = document.createElement('div');
+        wrapper.className = 'photo-wrapper enter';
+        
+        if (isVideo) {
+            wrapper.innerHTML = `<video src="${photo.url}" class="photo-video" autoplay muted loop playsinline style="max-width:100%;max-height:100%;"></video>`;
+            stage.appendChild(wrapper);
+            wrapper.offsetHeight;
+            activateWrapper(wrapper);
+        } else {
+            const src = getPhotoSrc(photo);
+            
+            // 检查是否已预加载
+            if (preloadCache.has(src)) {
+                // 使用预加载的图片，直接显示
+                const cachedImg = preloadCache.get(src);
+                const img = document.createElement('img');
+                img.src = cachedImg.src;
+                img.className = 'photo-image';
+                wrapper.appendChild(img);
+                stage.appendChild(wrapper);
+                wrapper.offsetHeight;
+                activateWrapper(wrapper);
+            } else {
+                // 未预加载，需要等待加载完成
+                const img = document.createElement('img');
+                img.className = 'photo-image';
+                
+                img.onload = () => {
+                    // 图片加载完成后再激活
+                    activateWrapper(wrapper);
+                    // 加入缓存
+                    preloadCache.set(src, img);
+                };
+                
+                img.onerror = () => {
+                    // 加载失败也要激活，避免卡住
+                    console.error('图片加载失败:', src);
+                    activateWrapper(wrapper);
+                };
+                
+                wrapper.appendChild(img);
+                stage.appendChild(wrapper);
+                wrapper.offsetHeight;
+                
+                // 设置 src 开始加载
+                img.src = src;
+                
+                // 超时保护：5秒后强制激活
+                setTimeout(() => {
+                    if (!wrapper.classList.contains('active')) {
+                        console.warn('图片加载超时，强制显示');
+                        activateWrapper(wrapper);
+                    }
+                }, 5000);
+            }
         }
-        wrapper.classList.remove('enter');
-        wrapper.classList.add('active');
-        updateMetadata(photo, index);
-        preloadNextPhoto(index);
     }
     
-    function preloadNextPhoto(currentIndex) {
-        if (photos.length <= 1) return;
-        const nextIndex = (currentIndex + 1) % photos.length;
-        const nextPhoto = photos[nextIndex];
-        if (nextPhoto.type !== 'video' && (!nextPhoto.filename || !nextPhoto.filename.match(/\.(mp4|mov)$/i))) {
-            let src = nextPhoto.web_url || nextPhoto.url;
-            const ts = nextPhoto.updated_at ? new Date(nextPhoto.updated_at).getTime() : (nextPhoto.created_at ? new Date(nextPhoto.created_at).getTime() : '');
-            if (ts) src += (src.includes('?') ? '&' : '?') + `v=${ts}`;
+    // 预加载多张图片
+    // startIndex: 从哪个索引开始（包含），如果为 -1 则从 0 开始
+    // count: 预加载几张
+    function preloadNextPhotos(startIndex, count = 3) {
+        if (!photos || photos.length <= 1) return;
+        
+        const start = startIndex < 0 ? 0 : (startIndex + 1);
+        
+        for (let i = 0; i < count; i++) {
+            const nextIndex = (start + i) % photos.length;
+            const nextPhoto = photos[nextIndex];
+            
+            if (!nextPhoto) continue;
+            if (nextPhoto.type === 'video' || (nextPhoto.filename && nextPhoto.filename.match(/\.(mp4|mov)$/i))) {
+                continue; // 跳过视频
+            }
+            
+            const src = getPhotoSrc(nextPhoto);
+            
+            // 如果已经在缓存中，跳过
+            if (preloadCache.has(src)) continue;
+            
+            // 创建预加载图片
             const img = new Image();
+            img.onload = () => {
+                preloadCache.set(src, img);
+                // 限制缓存大小，避免内存占用过大（树莓派内存有限）
+                if (preloadCache.size > 8) {
+                    const firstKey = preloadCache.keys().next().value;
+                    preloadCache.delete(firstKey);
+                }
+            };
             img.src = src;
         }
     }
