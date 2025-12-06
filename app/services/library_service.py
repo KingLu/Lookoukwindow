@@ -180,6 +180,111 @@ class LibraryService:
             logger.error(f"旋转失败: {e}")
             return False
 
+    def crop_photo(self, photo_id: str, x: int, y: int, width: int, height: int) -> bool:
+        """剪裁照片（只修改展示版，不修改原图）
+        
+        Args:
+            photo_id: 照片ID
+            x: 剪裁区域左上角 X 坐标（相对于展示版图片）
+            y: 剪裁区域左上角 Y 坐标
+            width: 剪裁区域宽度
+            height: 剪裁区域高度
+        
+        原图保持不变，只剪裁 web_images 和 thumbnails 中的展示版
+        """
+        photo = self.get_photo(photo_id)
+        if not photo or photo["type"] != "image": 
+            return False
+        
+        filename = photo["filename"]
+        web_path = self.web_images_dir / filename
+        thumb_path = self.thumbnails_dir / filename
+        
+        # 优先使用展示版进行剪裁，如果不存在则使用原图
+        source_path = web_path if web_path.exists() else (self.library_dir / filename)
+        
+        if not source_path.exists():
+            logger.error(f"剪裁失败: 源文件不存在 {source_path}")
+            return False
+        
+        try:
+            with Image.open(source_path) as img:
+                # 验证剪裁区域
+                img_width, img_height = img.size
+                
+                # 确保剪裁区域在图片范围内
+                x = max(0, min(x, img_width - 1))
+                y = max(0, min(y, img_height - 1))
+                width = max(1, min(width, img_width - x))
+                height = max(1, min(height, img_height - y))
+                
+                # 剪裁 (left, upper, right, lower)
+                cropped = img.crop((x, y, x + width, y + height))
+                
+                if cropped.mode in ('RGBA', 'P'):
+                    cropped = cropped.convert('RGB')
+                
+                # 保存剪裁后的 Web 版
+                crop_width, crop_height = cropped.size
+                if crop_width > 1280 or crop_height > 1280:
+                    web_img = cropped.copy()
+                    web_img.thumbnail((1280, 1280), Image.Resampling.LANCZOS)
+                    web_img.save(web_path, "JPEG", quality=75)
+                else:
+                    cropped.save(web_path, "JPEG", quality=75)
+                
+                # 生成新的缩略图
+                thumb_img = cropped.copy()
+                thumb_img.thumbnail((400, 400))
+                thumb_img.save(thumb_path, "JPEG", quality=80)
+            
+            # 记录剪裁信息
+            self.update_photo(photo_id, {
+                "cropped": True,
+                "crop_info": {"x": x, "y": y, "width": width, "height": height}
+            })
+            
+            logger.info(f"照片 {photo_id} 已剪裁: ({x}, {y}, {width}x{height})")
+            return True
+            
+        except Exception as e:
+            logger.error(f"剪裁失败: {e}")
+            return False
+
+    def reset_photo_edits(self, photo_id: str) -> bool:
+        """重置照片编辑，从原图重新生成展示版
+        
+        恢复照片到原始状态（取消旋转和剪裁）
+        """
+        photo = self.get_photo(photo_id)
+        if not photo or photo["type"] != "image":
+            return False
+        
+        filename = photo["filename"]
+        original_path = self.library_dir / filename
+        
+        if not original_path.exists():
+            logger.error(f"重置失败: 原图不存在 {original_path}")
+            return False
+        
+        try:
+            # 从原图重新生成展示版
+            self._generate_derivatives(original_path, photo_id)
+            
+            # 清除编辑记录
+            self.update_photo(photo_id, {
+                "rotation": 0,
+                "cropped": False,
+                "crop_info": None
+            })
+            
+            logger.info(f"照片 {photo_id} 已重置为原始状态")
+            return True
+            
+        except Exception as e:
+            logger.error(f"重置失败: {e}")
+            return False
+
     def delete_photo(self, photo_id: str):
         """删除照片"""
         logger.info(f"开始删除照片: {photo_id}")
