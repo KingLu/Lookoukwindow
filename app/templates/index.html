@@ -1051,15 +1051,29 @@
             photos = await res.json();
             const container = document.getElementById('photo-container');
             if (photos.length > 0) { 
-                // 立即开始预加载前几张图片
-                preloadNextPhotos(-1, 5);
-                
                 container.innerHTML = `
                     <div id="photo-stage" style="width:100%;height:100%;position:relative;" class="transition-${slideshowTransition}"></div>
                     <button class="photo-nav prev" onclick="prevPhoto()">‹</button>
                     <button class="photo-nav next" onclick="nextPhoto()">›</button>
                     <div id="photo-metadata-container" class="photo-metadata ${showMetadata ? '' : 'hidden'}"></div>
                 `;
+                
+                // 预加载第一张图片后再显示（避免首次黑屏）
+                const firstPhoto = photos[0];
+                const isFirstVideo = firstPhoto.type === 'video' || (firstPhoto.filename && firstPhoto.filename.match(/\.(mp4|mov)$/i));
+                
+                if (!isFirstVideo) {
+                    const firstSrc = getPhotoSrc(firstPhoto);
+                    try {
+                        await preloadImage(firstSrc);
+                    } catch (e) {
+                        console.warn('首张图片预加载失败，继续显示', e);
+                    }
+                }
+                
+                // 异步预加载后续图片
+                preloadNextPhotos(0, 5);
+                
                 displayPhoto(0); 
                 startSlideshow(); 
             } else { 
@@ -1068,8 +1082,10 @@
         } catch(e) { console.error("加载照片失败", e); }
     }
 
-    // 预加载缓存：存储已预加载的图片对象
+    // 预加载缓存：存储已预加载并解码完成的图片对象
     const preloadCache = new Map();
+    // 正在预加载的图片（避免重复加载）
+    const preloadingSet = new Set();
     
     // 获取图片 URL（带缓存 buster）
     function getPhotoSrc(photo) {
@@ -1077,6 +1093,62 @@
         const ts = photo.updated_at ? new Date(photo.updated_at).getTime() : (photo.created_at ? new Date(photo.created_at).getTime() : '');
         if (ts) src += (src.includes('?') ? '&' : '?') + `v=${ts}`;
         return src;
+    }
+    
+    // 预加载单张图片并返回 Promise
+    function preloadImage(src) {
+        return new Promise((resolve, reject) => {
+            // 已在缓存中
+            if (preloadCache.has(src)) {
+                resolve(preloadCache.get(src));
+                return;
+            }
+            
+            // 正在加载中，等待完成
+            if (preloadingSet.has(src)) {
+                const checkInterval = setInterval(() => {
+                    if (preloadCache.has(src)) {
+                        clearInterval(checkInterval);
+                        resolve(preloadCache.get(src));
+                    }
+                }, 50);
+                // 最多等待10秒
+                setTimeout(() => {
+                    clearInterval(checkInterval);
+                    reject(new Error('预加载超时'));
+                }, 10000);
+                return;
+            }
+            
+            preloadingSet.add(src);
+            
+            const img = new Image();
+            img.onload = async () => {
+                try {
+                    // 等待图片解码完成（关键！树莓派解码很慢）
+                    if (img.decode) {
+                        await img.decode();
+                    }
+                    preloadCache.set(src, img);
+                    preloadingSet.delete(src);
+                    
+                    // 限制缓存大小（树莓派内存有限）
+                    if (preloadCache.size > 6) {
+                        const firstKey = preloadCache.keys().next().value;
+                        preloadCache.delete(firstKey);
+                    }
+                    resolve(img);
+                } catch (e) {
+                    preloadingSet.delete(src);
+                    reject(e);
+                }
+            };
+            img.onerror = () => {
+                preloadingSet.delete(src);
+                reject(new Error('加载失败'));
+            };
+            img.src = src;
+        });
     }
     
     function displayPhoto(index) {
@@ -1113,7 +1185,7 @@
             wrapper.classList.add('active');
             updateMetadata(photo, index);
             
-            // 预加载后续图片
+            // 预加载后续图片（异步，不阻塞）
             preloadNextPhotos(index, 3);
         };
         
@@ -1129,56 +1201,53 @@
         } else {
             const src = getPhotoSrc(photo);
             
-            // 检查是否已预加载
+            // 检查是否已预加载并解码完成
             if (preloadCache.has(src)) {
-                // 使用预加载的图片，直接显示
+                // 直接克隆已解码的图片元素（关键！避免重新解码）
                 const cachedImg = preloadCache.get(src);
-                const img = document.createElement('img');
-                img.src = cachedImg.src;
+                const img = cachedImg.cloneNode(true);
                 img.className = 'photo-image';
                 wrapper.appendChild(img);
                 stage.appendChild(wrapper);
                 wrapper.offsetHeight;
+                // 立即激活，无需等待
                 activateWrapper(wrapper);
             } else {
-                // 未预加载，需要等待加载完成
+                // 未预加载，使用 Promise 等待加载和解码完成
                 const img = document.createElement('img');
                 img.className = 'photo-image';
-                
-                img.onload = () => {
-                    // 图片加载完成后再激活
-                    activateWrapper(wrapper);
-                    // 加入缓存
-                    preloadCache.set(src, img);
-                };
-                
-                img.onerror = () => {
-                    // 加载失败也要激活，避免卡住
-                    console.error('图片加载失败:', src);
-                    activateWrapper(wrapper);
-                };
-                
                 wrapper.appendChild(img);
                 stage.appendChild(wrapper);
                 wrapper.offsetHeight;
                 
-                // 设置 src 开始加载
-                img.src = src;
+                // 开始加载
+                preloadImage(src).then(loadedImg => {
+                    // 使用加载完成的图片的 src
+                    img.src = loadedImg.src;
+                    // 等待这个 img 也解码完成
+                    if (img.decode) {
+                        img.decode().then(() => activateWrapper(wrapper)).catch(() => activateWrapper(wrapper));
+                    } else {
+                        activateWrapper(wrapper);
+                    }
+                }).catch(err => {
+                    console.error('图片加载失败:', src, err);
+                    img.src = src;
+                    activateWrapper(wrapper);
+                });
                 
-                // 超时保护：5秒后强制激活
+                // 超时保护：8秒后强制激活
                 setTimeout(() => {
                     if (!wrapper.classList.contains('active')) {
                         console.warn('图片加载超时，强制显示');
                         activateWrapper(wrapper);
                     }
-                }, 5000);
+                }, 8000);
             }
         }
     }
     
-    // 预加载多张图片
-    // startIndex: 从哪个索引开始（包含），如果为 -1 则从 0 开始
-    // count: 预加载几张
+    // 预加载多张图片（异步执行，不阻塞）
     function preloadNextPhotos(startIndex, count = 3) {
         if (!photos || photos.length <= 1) return;
         
@@ -1195,20 +1264,11 @@
             
             const src = getPhotoSrc(nextPhoto);
             
-            // 如果已经在缓存中，跳过
-            if (preloadCache.has(src)) continue;
+            // 如果已经在缓存中或正在加载，跳过
+            if (preloadCache.has(src) || preloadingSet.has(src)) continue;
             
-            // 创建预加载图片
-            const img = new Image();
-            img.onload = () => {
-                preloadCache.set(src, img);
-                // 限制缓存大小，避免内存占用过大（树莓派内存有限）
-                if (preloadCache.size > 8) {
-                    const firstKey = preloadCache.keys().next().value;
-                    preloadCache.delete(firstKey);
-                }
-            };
-            img.src = src;
+            // 异步预加载（不等待结果）
+            preloadImage(src).catch(() => {});
         }
     }
     
