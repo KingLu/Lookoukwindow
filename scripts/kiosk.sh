@@ -125,6 +125,28 @@ log "启动 $BROWSER..."
 
 if [[ "$BROWSER" == *"chromium"* ]]; then
     # Chromium 启动参数
+    # 创建用户数据目录（用于持久化禁用翻译设置）
+    CHROMIUM_USER_DIR="$HOME/.local/share/lookoukwindow/chromium-kiosk"
+    mkdir -p "$CHROMIUM_USER_DIR"
+    
+    # 创建 Preferences 文件禁用翻译
+    PREFS_DIR="$CHROMIUM_USER_DIR/Default"
+    mkdir -p "$PREFS_DIR"
+    if [ ! -f "$PREFS_DIR/Preferences" ]; then
+        cat > "$PREFS_DIR/Preferences" << 'EOF'
+{
+    "translate": {
+        "enabled": false
+    },
+    "translate_blocked_languages": ["zh-CN", "zh", "en"],
+    "browser": {
+        "enable_spellchecking": false
+    }
+}
+EOF
+        log "已创建 Chromium 首选项文件禁用翻译"
+    fi
+    
     nohup "$BROWSER" \
         --noerrdialogs \
         --disable-infobars \
@@ -138,17 +160,40 @@ if [[ "$BROWSER" == *"chromium"* ]]; then
         --disable-extensions \
         --disable-component-extensions-with-background-pages \
         --disable-default-apps \
-        --disable-features=Translate,TranslateUI \
+        --disable-features=Translate,TranslateUI,TranslateScript \
+        --lang=zh-CN \
+        --accept-lang=zh-CN,zh \
+        --user-data-dir="$CHROMIUM_USER_DIR" \
         http://localhost:8000 >> "$LOG_FILE" 2>&1 &
 else
     # Firefox 启动参数
+    # 创建 Firefox profile 目录（用于持久化设置）
+    FIREFOX_PROFILE_DIR="$HOME/.local/share/lookoukwindow/firefox-kiosk"
+    mkdir -p "$FIREFOX_PROFILE_DIR"
+    
+    # 创建 user.js 文件禁用翻译和其他干扰项
+    if [ ! -f "$FIREFOX_PROFILE_DIR/user.js" ]; then
+        cat > "$FIREFOX_PROFILE_DIR/user.js" << 'EOF'
+// 禁用翻译功能
+user_pref("browser.translations.enable", false);
+user_pref("browser.translations.automaticallyPopup", false);
+user_pref("browser.translations.panelShown", false);
+// 禁用首次运行向导
+user_pref("browser.startup.homepage_override.mstone", "ignore");
+user_pref("datareporting.policy.dataSubmissionEnabled", false);
+user_pref("toolkit.telemetry.reportingpolicy.firstRun", false);
+// 设置语言
+user_pref("intl.accept_languages", "zh-CN, zh");
+user_pref("intl.locale.requested", "zh-CN");
+EOF
+        log "已创建 Firefox 首选项文件禁用翻译"
+    fi
+    
     nohup "$BROWSER" \
         --kiosk \
         --private-window \
         --no-remote \
-        --disable-background-timer-throttling \
-        --disable-backgrounding-occluded-windows \
-        --disable-renderer-backgrounding \
+        --profile "$FIREFOX_PROFILE_DIR" \
         http://localhost:8000 >> "$LOG_FILE" 2>&1 &
 fi
 
