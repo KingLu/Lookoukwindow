@@ -19,12 +19,18 @@ def get_config() -> Config:
 def get_service(config: Config = Depends(get_config)) -> FinanceService:
     return get_finance_service(config.data_dir)
 
+class IndexPoint(BaseModel):
+    """指数历史数据点"""
+    t: str  # 日期
+    v: float  # 收盘价
+
 class IndexData(BaseModel):
     symbol: str
     name: str
     price: float
     change: float
     change_percent: float
+    history_1m: List[IndexPoint] = []  # 1个月历史数据
 
 class StockPoint(BaseModel):
     t: str
@@ -60,7 +66,7 @@ class StockData(BaseModel):
 
 @router.get("/indices", response_model=List[IndexData])
 async def get_indices(service: FinanceService = Depends(get_service)):
-    """获取大盘指数数据"""
+    """获取大盘指数数据（包含1个月历史趋势）"""
     # 从新服务获取配置
     indices_config = service.get_indices()
     if not indices_config:
@@ -86,6 +92,19 @@ async def get_indices(service: FinanceService = Depends(get_service)):
                 price = info.last_price
                 prev_close = info.previous_close
                 
+                # 获取1个月历史数据
+                history_1m_points = []
+                try:
+                    hist = ticker.history(period="1mo", interval="1d")
+                    if not hist.empty:
+                        for idx, row in hist.iterrows():
+                            val = row['Close']
+                            if val == val:  # not NaN
+                                t_str = idx.strftime("%m-%d")
+                                history_1m_points.append(IndexPoint(t=t_str, v=round(val, 2)))
+                except Exception as e:
+                    logger.debug(f"Failed to fetch 1m history for {symbol}: {e}")
+                
                 if price is not None and prev_close is not None:
                     change = price - prev_close
                     # 避免除以零
@@ -96,7 +115,8 @@ async def get_indices(service: FinanceService = Depends(get_service)):
                         "name": name,
                         "price": round(price, 2),
                         "change": round(change, 2),
-                        "change_percent": round(change_percent, 2)
+                        "change_percent": round(change_percent, 2),
+                        "history_1m": history_1m_points
                     })
                 else:
                     # 数据不完整
@@ -105,7 +125,8 @@ async def get_indices(service: FinanceService = Depends(get_service)):
                         "name": name,
                         "price": 0.0,
                         "change": 0.0,
-                        "change_percent": 0.0
+                        "change_percent": 0.0,
+                        "history_1m": history_1m_points
                     })
 
             except Exception as e:
@@ -116,7 +137,8 @@ async def get_indices(service: FinanceService = Depends(get_service)):
                     "name": name,
                     "price": 0.0,
                     "change": 0.0,
-                    "change_percent": 0.0
+                    "change_percent": 0.0,
+                    "history_1m": []
                 })
                 
         return results

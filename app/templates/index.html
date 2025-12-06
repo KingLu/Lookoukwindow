@@ -254,25 +254,63 @@
         overflow: hidden;
     }
 
-    /* Indices Ticker */
+    /* Indices Ticker - 指数卡片跑马灯 (增强版) */
     .indices-ticker {
         width: 100%; overflow: hidden; position: relative; padding: 0 15px;
         mask-image: linear-gradient(to right, transparent, black 2%, black 98%, transparent);
         -webkit-mask-image: linear-gradient(to right, transparent, black 2%, black 98%, transparent);
         margin-bottom: 2px; flex: 0 0 auto;
     }
-    .indices-track { display: flex; gap: 15px; width: max-content; animation: marquee 30s linear infinite; }
+    .indices-track { display: flex; gap: 12px; width: max-content; animation: marquee 60s linear infinite; }
     .indices-track:hover { animation-play-state: paused; }
     @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+    
+    /* 指数卡片 - 详细信息展示 */
     .index-card {
-        background: rgba(255,255,255,0.08); padding: 4px 8px; border-radius: 4px;
-        min-width: 100px; display: flex; flex-direction: column; justify-content: center; flex-shrink: 0; 
+        background: linear-gradient(135deg, rgba(40,40,45,0.95), rgba(30,30,35,0.9));
+        padding: 8px 12px; border-radius: 8px;
+        min-width: 160px; display: flex; flex-direction: row; align-items: center; 
+        flex-shrink: 0; gap: 10px;
+        border: 1px solid rgba(255,255,255,0.08);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
-    .index-name { font-size: 0.7rem; color: #aaa; margin-bottom: 1px; white-space: nowrap; }
-    .index-price { font-size: 0.9rem; font-weight: bold; }
-    .index-change { font-size: 0.75rem; }
+    .index-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+    
+    /* 左侧：文字信息 */
+    .index-info {
+        display: flex; flex-direction: column; gap: 2px; min-width: 80px;
+    }
+    .index-name { 
+        font-size: 0.75rem; color: #ccc; white-space: nowrap; font-weight: 500;
+        letter-spacing: 0.5px;
+    }
+    .index-price { 
+        font-size: 1.1rem; font-weight: 700; line-height: 1.1;
+        font-family: 'Segoe UI', 'SF Pro Display', sans-serif;
+    }
+    .index-change-row {
+        display: flex; gap: 6px; align-items: baseline;
+    }
+    .index-change-val { font-size: 0.7rem; font-weight: 500; }
+    .index-change-pct { font-size: 0.7rem; font-weight: 600; }
+    
+    /* 右侧：迷你趋势图 */
+    .index-chart-box {
+        width: 60px; height: 35px; flex-shrink: 0;
+    }
+    .index-chart-box canvas {
+        width: 100% !important; height: 100% !important;
+    }
+    
+    /* 涨跌颜色 - 中国股市惯例：红涨绿跌 */
     .up { color: #e74c3c; }
     .down { color: #2ecc71; }
+    .up-bg { background: rgba(231, 76, 60, 0.15); border-color: rgba(231, 76, 60, 0.3); }
+    .down-bg { background: rgba(46, 204, 113, 0.15); border-color: rgba(46, 204, 113, 0.3); }
 
     /* Stock Carousel - Value Investing Layout (Compact) */
     .stock-carousel {
@@ -499,6 +537,9 @@
     const tickerSpeed = {{ finance_config.get('ticker_speed_seconds', 30) }};
     const stockSwitchInterval = {{ finance_config.get('stock_switch_interval_seconds', 10) }} * 1000;
 
+    // 存储指数迷你图表实例
+    let indexChartInstances = {};
+    
     async function updateIndices() {
         if (window.isAppSleeping) return;
         try {
@@ -512,18 +553,111 @@
             }
             const track = document.createElement('div');
             track.className = 'indices-track';
-            const createCardsHtml = (items) => {
-                return items.map(idx => {
+            
+            // 创建指数卡片HTML（详细版 + 趋势图）
+            const createCardsHtml = (items, suffix = '') => {
+                return items.map((idx, i) => {
                     const isUp = idx.change >= 0;
                     const colorClass = isUp ? 'up' : 'down';
+                    const bgClass = isUp ? 'up-bg' : 'down-bg';
                     const sign = isUp ? '+' : '';
-                    return `<div class="index-card"><div class="index-name">${idx.name}</div><div class="index-price ${colorClass}">${idx.price.toFixed(2)}</div><div class="index-change ${colorClass}">${sign}${idx.change_percent.toFixed(2)}%</div></div>`;
+                    const canvasId = `index-chart-${idx.symbol.replace(/[^a-zA-Z0-9]/g, '')}-${suffix}-${i}`;
+                    
+                    return `
+                        <div class="index-card ${bgClass}">
+                            <div class="index-info">
+                                <div class="index-name">${idx.name}</div>
+                                <div class="index-price ${colorClass}">${idx.price.toFixed(2)}</div>
+                                <div class="index-change-row">
+                                    <span class="index-change-val ${colorClass}">${sign}${idx.change.toFixed(2)}</span>
+                                    <span class="index-change-pct ${colorClass}">(${sign}${idx.change_percent.toFixed(2)}%)</span>
+                                </div>
+                            </div>
+                            <div class="index-chart-box">
+                                <canvas id="${canvasId}" data-history='${JSON.stringify(idx.history_1m || [])}'></canvas>
+                            </div>
+                        </div>
+                    `;
                 }).join('');
             };
-            track.innerHTML = createCardsHtml(data) + createCardsHtml(data);
+            
+            // 无缝滚动：复制两份数据
+            track.innerHTML = createCardsHtml(data, 'a') + createCardsHtml(data, 'b');
             container.appendChild(track);
-            track.style.animationDuration = `${tickerSpeed}s`;
+            track.style.animationDuration = `${tickerSpeed * 2}s`;  // 卡片更大，需要更多时间
+            
+            // 渲染所有迷你趋势图
+            setTimeout(() => {
+                renderAllIndexCharts();
+            }, 100);
+            
         } catch (e) { console.error("指数更新失败", e); }
+    }
+    
+    // 渲染指数迷你趋势图
+    function renderAllIndexCharts() {
+        // 清理旧的图表实例
+        Object.values(indexChartInstances).forEach(chart => {
+            if (chart) chart.destroy();
+        });
+        indexChartInstances = {};
+        
+        // 查找所有迷你图表canvas
+        const canvases = document.querySelectorAll('.index-chart-box canvas');
+        canvases.forEach(canvas => {
+            const canvasId = canvas.id;
+            let historyData = [];
+            try {
+                historyData = JSON.parse(canvas.dataset.history || '[]');
+            } catch(e) {}
+            
+            if (historyData.length > 0) {
+                renderMiniChart(canvasId, historyData);
+            }
+        });
+    }
+    
+    // 渲染单个迷你趋势图
+    function renderMiniChart(canvasId, points) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+        
+        const ctx = canvas.getContext('2d');
+        if (!points || points.length < 2) return;
+        
+        const values = points.map(p => p.v);
+        const firstVal = values[0];
+        const lastVal = values[values.length - 1];
+        const isUp = lastVal >= firstVal;
+        const lineColor = isUp ? '#e74c3c' : '#2ecc71';
+        const fillColor = isUp ? 'rgba(231, 76, 60, 0.2)' : 'rgba(46, 204, 113, 0.2)';
+        
+        indexChartInstances[canvasId] = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: points.map(p => p.t),
+                datasets: [{
+                    data: values,
+                    borderColor: lineColor,
+                    backgroundColor: fillColor,
+                    borderWidth: 1.5,
+                    pointRadius: 0,
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                scales: {
+                    x: { display: false },
+                    y: { display: false }
+                },
+                animation: { duration: 0 },
+                elements: { line: { borderCapStyle: 'round' } }
+            }
+        });
     }
 
     async function loadWatchlist() {
